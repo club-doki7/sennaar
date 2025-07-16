@@ -30,7 +30,7 @@ macro_rules! ss_enum {
 #[allow(unused_macros)]
 macro_rules! ss_enum_wcustom {
     ($name:ident, $($variant:ident),+) => {
-        #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+        #[derive(Debug, Clone, Eq, PartialEq, Hash)]
         pub enum $name {
             Custom(String),
             $($variant),+

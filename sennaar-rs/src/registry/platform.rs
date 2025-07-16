@@ -24,7 +24,7 @@ ss_enum_wcustom! {
     MUSL, GLIBC, MSFT
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Platform {
     pub arch: Option<Arch>,
     pub endian: Option<Endian>,
