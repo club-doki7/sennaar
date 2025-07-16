@@ -71,7 +71,7 @@ macro_rules! ss_enum_wcustom {
         }
 
         impl std::str::FromStr for $name {
-            type Err = String;
+            type Err = std::convert::Infallible;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 match s {

@@ -87,7 +87,7 @@ impl FromStr for Platform {
         let arch = if parts[0] == UNKNOWN_ARCH {
             None
         } else {
-            Some(parts[0].parse::<Arch>()?)
+            Some(parts[0].parse::<Arch>().unwrap())
         };
 
         let endian = if parts[1] == UNKNOWN_ENDIAN {
@@ -99,13 +99,13 @@ impl FromStr for Platform {
         let os = if parts[2] == UNKNOWN_OS {
             None
         } else {
-            Some(parts[2].parse::<OS>()?)
+            Some(parts[2].parse::<OS>().unwrap())
         };
 
         let libc = if parts[3] == UNKNOWN_LIBC {
             None
         } else {
-            Some(parts[3].parse::<LibC>()?)
+            Some(parts[3].parse::<LibC>().unwrap())
         };
 
         let custom = if parts.len() == 5 {
