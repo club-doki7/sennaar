@@ -1,7 +1,38 @@
+#[allow(unused_macros)]
 macro_rules! ss_enum {
     ($name:ident, $($variant:ident),+) => {
-        #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
+        #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
         pub enum $name {
+            $($variant),+
+        }
+
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", match self {
+                    $(Self::$variant => stringify!($variant)),+
+                })
+            }
+        }
+
+        impl std::str::FromStr for $name {
+            type Err = String;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s {
+                    $(stringify!($variant) => Ok(Self::$variant)),+,
+                    _ => Err(format!("Unknown variant: {}", s)),
+                }
+            }
+        }
+    };
+}
+
+#[allow(unused_macros)]
+macro_rules! ss_enum_wcustom {
+    ($name:ident, $($variant:ident),+) => {
+        #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+        pub enum $name {
+            Custom(String),
             $($variant),+
         }
 
@@ -11,6 +42,7 @@ macro_rules! ss_enum {
                 S: serde::Serializer,
             {
                 serializer.serialize_str(match self {
+                    Self::Custom(s) => s,
                     $(Self::$variant => stringify!($variant)),+
                 })
             }
@@ -24,9 +56,29 @@ macro_rules! ss_enum {
                 let s: &str = serde::Deserialize::deserialize(deserializer)?;
                 match s {
                     $(stringify!($variant) => Ok(Self::$variant)),+,
-                    _ => Err(serde::de::Error::custom(format!("Unknown {} variant: {}", stringify!($name), s))),
+                    _ => Ok(Self::Custom(s.to_string())),
                 }
             }
         }
-    };
+
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", match self {
+                    Self::Custom(s) => s,
+                    $(Self::$variant => stringify!($variant)),+
+                })
+            }
+        }
+
+        impl std::str::FromStr for $name {
+            type Err = String;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s {
+                    $(stringify!($variant) => Ok(Self::$variant)),+,
+                    _ => Ok(Self::Custom(s.to_string())),
+                }
+            }
+        }
+    }
 }
