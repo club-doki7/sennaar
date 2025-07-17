@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -36,7 +36,6 @@ entity!{
     Typedef,
     target: Identifier,
 }
-
 ss_enum! {
     Bitwidth, Bit32, Bit64
 }
@@ -61,12 +60,40 @@ entity_a!{
     alias_to: Option<Identifier>
 }
 
+impl<'a> Command<'a> {
+    pub fn sanitize(&self) {
+        for param in &self.params {
+            param.sanitize();
+        }
+    }
+
+    pub fn sanitize_fix(&mut self) {
+        for param in &mut self.params {
+            param.sanitize_fix();
+        }
+    }
+}
+
 entity_a!{
     Param,
     ty: Type<'a>,
     optional: bool,
     len: Option<CExpr<'a>>,
     arg_len: Option<CExpr<'a>>
+}
+
+impl<'a> Param<'a> {
+    pub fn sanitize(&self) {
+        if let Type::PointerType(ptr_type) = &self.ty {
+            assert_eq!(ptr_type.nullable, self.optional);
+        }
+    }
+
+    pub fn sanitize_fix(&mut self) {
+        if let Type::PointerType(ptr_type) = &mut self.ty {
+            ptr_type.nullable = self.optional;
+        }
+    }
 }
 
 entity_a!{
@@ -93,6 +120,20 @@ entity_a!{
     is_native_api: bool
 }
 
+impl<'a> FunctionTypedef<'a> {
+    pub fn sanitize(&self) {
+        for param in &self.params {
+            param.sanitize();
+        }
+    }
+
+    pub fn sanitize_fix(&mut self) {
+        for param in &mut self.params {
+            param.sanitize_fix();
+        }
+    }
+}
+
 entity!{OpaqueTypedef,}
 
 entity!{OpaqueHandleTypedef,}
@@ -112,8 +153,37 @@ entity_a!{
     alt_len: Option<CExpr<'a>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
+pub struct Import {
+    pub name: Identifier,
+    pub version: Option<String>,
+    pub depend: bool
+}
+
+impl PartialEq for Import {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.version == other.version
+    }
+}
+
+impl Eq for Import {}
+
+impl PartialOrd for Import {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Import {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
 entity_a!{
     Registry,
+    imports: BTreeSet<Import>,
     aliases: HashMap<Identifier, Typedef>,
     bitmasks: HashMap<Identifier, Bitmask<'a>>,
     constants: HashMap<Identifier, Constant<'a>>,
@@ -122,6 +192,69 @@ entity_a!{
     function_typedefs: HashMap<Identifier, FunctionTypedef<'a>>,
     opaque_typedefs: HashMap<Identifier, OpaqueTypedef>,
     opaque_handle_typedefs: HashMap<Identifier, OpaqueHandleTypedef>,
-    structures: HashMap<Identifier, Structure<'a>>,
+    structs: HashMap<Identifier, Structure<'a>>,
     unions: HashMap<Identifier, Structure<'a>>
+}
+
+impl<'a> Registry<'a> {
+    pub fn new(name: Identifier) -> Self {
+        Self {
+            name,
+            metadata: HashMap::new(),
+            doc: Vec::new(),
+            platform: None,
+
+            imports: BTreeSet::new(),
+            aliases: HashMap::new(),
+            bitmasks: HashMap::new(),
+            constants: HashMap::new(),
+            commands: HashMap::new(),
+            enumerations: HashMap::new(),
+            function_typedefs: HashMap::new(),
+            opaque_typedefs: HashMap::new(),
+            opaque_handle_typedefs: HashMap::new(),
+            structs: HashMap::new(),
+            unions: HashMap::new()
+        }
+    }
+
+    pub fn sanitize(&self) {
+        for command in self.commands.values() {
+            command.sanitize();
+        }
+
+        for typedef in self.function_typedefs.values() {
+            typedef.sanitize();
+        }
+    }
+
+    pub fn sanitize_fix(&mut self) {
+        for command in self.commands.values_mut() {
+            command.sanitize_fix();
+        }
+
+        for typedef in self.function_typedefs.values_mut() {
+            typedef.sanitize_fix();
+        }
+    }
+
+    pub fn merge_with(&mut self, other: Self) {
+        self.imports.extend(other.imports);
+        self.aliases.extend(other.aliases);
+        self.bitmasks.extend(other.bitmasks);
+        self.constants.extend(other.constants);
+        self.commands.extend(other.commands);
+        self.enumerations.extend(other.enumerations);
+        self.function_typedefs.extend(other.function_typedefs);
+        self.opaque_typedefs.extend(other.opaque_typedefs);
+        self.opaque_handle_typedefs.extend(other.opaque_handle_typedefs);
+        self.structs.extend(other.structs);
+        self.unions.extend(other.unions);
+
+        for (key, value) in other.metadata {
+            self.metadata.entry(key).or_insert(value);
+        }
+
+        self.doc.extend(other.doc);
+    }
 }

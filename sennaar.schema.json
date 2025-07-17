@@ -28,6 +28,13 @@
         }
       ]
     },
+    "imports": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Import"
+      }
+    },
     "aliases": {
       "type": "object",
       "additionalProperties": {
@@ -76,7 +83,7 @@
         "$ref": "#/$defs/OpaqueHandleTypedef"
       }
     },
-    "structures": {
+    "structs": {
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/Structure"
@@ -93,6 +100,7 @@
     "name",
     "metadata",
     "doc",
+    "imports",
     "aliases",
     "bitmasks",
     "constants",
@@ -101,7 +109,7 @@
     "functionTypedefs",
     "opaqueTypedefs",
     "opaqueHandleTypedefs",
-    "structures",
+    "structs",
     "unions"
   ],
   "$defs": {
@@ -253,6 +261,27 @@
             "MSFT"
           ]
         }
+      ]
+    },
+    "Import": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "depend": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "depend"
       ]
     },
     "Typedef": {
