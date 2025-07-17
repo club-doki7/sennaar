@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::Identifier;
@@ -7,6 +8,7 @@ use crate::Identifier;
 include!("../macross.rs");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 #[serde(tag = "$kind")]
 pub enum CExpr<'a> {
     IntLiteral(Box<CIntLiteralExpr<'a>>),
@@ -26,51 +28,60 @@ pub enum CExpr<'a> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CIntLiteralExpr<'a> {
     pub value: Cow<'a, str>,
     pub suffix: Cow<'a, str>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CFloatLiteralExpr<'a> {
     pub value: Cow<'a, str>,
     pub suffix: Cow<'a, str>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CCharLiteralExpr<'a> {
     pub value: Cow<'a, str>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CStringLiteralExpr<'a> {
     pub value: Cow<'a, str>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CIdentifierExpr {
     pub ident: Identifier,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CIndexExpr<'a> {
     pub base: CExpr<'a>,
     pub index: CExpr<'a>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CCallExpr<'a> {
     pub callee: CExpr<'a>,
     pub args: Vec<CExpr<'a>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CMemberExpr<'a> {
     pub obj: CExpr<'a>,
     pub member: Identifier,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CPtrMemberExpr<'a> {
     pub obj: CExpr<'a>,
     pub member: Identifier,
@@ -79,6 +90,7 @@ pub struct CPtrMemberExpr<'a> {
 ss_enum!{CPostfixIncDecOp, Inc, Dec}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CPostfixIncDecExpr<'a> {
     pub expr: CExpr<'a>,
     pub op: CPostfixIncDecOp,
@@ -90,12 +102,14 @@ ss_enum!{
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CUnaryExpr<'a> {
     pub expr: CExpr<'a>,
     pub op: CUnaryOp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CCastExpr<'a> {
     pub expr: CExpr<'a>,
     pub ty: CExpr<'a>,
@@ -119,6 +133,7 @@ ss_enum!{
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CBinaryExpr<'a> {
     pub op: CBinaryOp,
     pub lhs: CExpr<'a>,
@@ -126,6 +141,7 @@ pub struct CBinaryExpr<'a> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct CConditionalExpr<'a> {
     pub cond: CExpr<'a>,
     pub then: CExpr<'a>,

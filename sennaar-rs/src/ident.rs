@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -6,6 +7,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
+use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
 use serde::de::Error as DeserializeError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -35,6 +37,16 @@ pub fn reset_identifier_renames() {
 
 #[derive(Clone)]
 pub struct Identifier(Rc<IdentInternal>);
+
+impl JsonSchema for Identifier {
+    fn schema_name() -> Cow<'static, str> {
+        Cow::Borrowed("Identifier")
+    }
+
+    fn json_schema(_: &mut SchemaGenerator) -> Schema {
+        json_schema!({ "type": "string" })
+    }
+}
 
 impl Identifier {
     pub fn original(&self) -> &str {

@@ -1,0 +1,1399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Registry",
+  "type": "object",
+  "properties": {
+    "name": {
+      "$ref": "#/$defs/Identifier"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Metadata"
+      }
+    },
+    "doc": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "platform": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Platform"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "aliases": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Typedef"
+      }
+    },
+    "bitmasks": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Bitmask"
+      }
+    },
+    "constants": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Constant"
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Command"
+      }
+    },
+    "enumerations": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Enumeration"
+      }
+    },
+    "functionTypedefs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/FunctionTypedef"
+      }
+    },
+    "opaqueTypedefs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/OpaqueTypedef"
+      }
+    },
+    "opaqueHandleTypedefs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/OpaqueHandleTypedef"
+      }
+    },
+    "structures": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Structure"
+      }
+    },
+    "unions": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Structure"
+      }
+    }
+  },
+  "required": [
+    "name",
+    "metadata",
+    "doc",
+    "aliases",
+    "bitmasks",
+    "constants",
+    "commands",
+    "enumerations",
+    "functionTypedefs",
+    "opaqueTypedefs",
+    "opaqueHandleTypedefs",
+    "structures",
+    "unions"
+  ],
+  "$defs": {
+    "Identifier": {
+      "type": "string"
+    },
+    "Metadata": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "None"
+            }
+          },
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "String"
+            }
+          },
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "KeyValues"
+            }
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          },
+          "required": [
+            "$kind"
+          ]
+        }
+      ]
+    },
+    "Platform": {
+      "type": "object",
+      "properties": {
+        "arch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Arch"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "endian": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Endian"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "os": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OS"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "libc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LibC"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "custom": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "Arch": {
+      "type": "string"
+    },
+    "Endian": {
+      "type": "string",
+      "enum": [
+        "Little",
+        "Big"
+      ]
+    },
+    "OS": {
+      "type": "string"
+    },
+    "LibC": {
+      "type": "string"
+    },
+    "Typedef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/Identifier"
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "target"
+      ]
+    },
+    "Bitmask": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bitwidth": {
+          "$ref": "#/$defs/Bitwidth"
+        },
+        "bitflags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Bitflag"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "bitwidth",
+        "bitflags"
+      ]
+    },
+    "Bitwidth": {
+      "type": "string",
+      "enum": [
+        "Bit32",
+        "Bit64"
+      ]
+    },
+    "Bitflag": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/CExpr"
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "value"
+      ]
+    },
+    "CExpr": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "IntLiteral"
+            }
+          },
+          "$ref": "#/$defs/CIntLiteralExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "FloatLiteral"
+            }
+          },
+          "$ref": "#/$defs/CFloatLiteralExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "CharLiteral"
+            }
+          },
+          "$ref": "#/$defs/CCharLiteralExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "StringLiteral"
+            }
+          },
+          "$ref": "#/$defs/CStringLiteralExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "Identifier"
+            }
+          },
+          "$ref": "#/$defs/CIdentifierExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "Index"
+            }
+          },
+          "$ref": "#/$defs/CIndexExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "Call"
+            }
+          },
+          "$ref": "#/$defs/CCallExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "Member"
+            }
+          },
+          "$ref": "#/$defs/CMemberExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "PtrMember"
+            }
+          },
+          "$ref": "#/$defs/CPtrMemberExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "PostfixIncDec"
+            }
+          },
+          "$ref": "#/$defs/CPostfixIncDecExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "Unary"
+            }
+          },
+          "$ref": "#/$defs/CUnaryExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "Cast"
+            }
+          },
+          "$ref": "#/$defs/CCastExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "Binary"
+            }
+          },
+          "$ref": "#/$defs/CBinaryExpr",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "Conditional"
+            }
+          },
+          "$ref": "#/$defs/CConditionalExpr",
+          "required": [
+            "$kind"
+          ]
+        }
+      ]
+    },
+    "CIntLiteralExpr": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "suffix": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "suffix"
+      ]
+    },
+    "CFloatLiteralExpr": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "suffix": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "suffix"
+      ]
+    },
+    "CCharLiteralExpr": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ]
+    },
+    "CStringLiteralExpr": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ]
+    },
+    "CIdentifierExpr": {
+      "type": "object",
+      "properties": {
+        "ident": {
+          "$ref": "#/$defs/Identifier"
+        }
+      },
+      "required": [
+        "ident"
+      ]
+    },
+    "CIndexExpr": {
+      "type": "object",
+      "properties": {
+        "base": {
+          "$ref": "#/$defs/CExpr"
+        },
+        "index": {
+          "$ref": "#/$defs/CExpr"
+        }
+      },
+      "required": [
+        "base",
+        "index"
+      ]
+    },
+    "CCallExpr": {
+      "type": "object",
+      "properties": {
+        "callee": {
+          "$ref": "#/$defs/CExpr"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CExpr"
+          }
+        }
+      },
+      "required": [
+        "callee",
+        "args"
+      ]
+    },
+    "CMemberExpr": {
+      "type": "object",
+      "properties": {
+        "obj": {
+          "$ref": "#/$defs/CExpr"
+        },
+        "member": {
+          "$ref": "#/$defs/Identifier"
+        }
+      },
+      "required": [
+        "obj",
+        "member"
+      ]
+    },
+    "CPtrMemberExpr": {
+      "type": "object",
+      "properties": {
+        "obj": {
+          "$ref": "#/$defs/CExpr"
+        },
+        "member": {
+          "$ref": "#/$defs/Identifier"
+        }
+      },
+      "required": [
+        "obj",
+        "member"
+      ]
+    },
+    "CPostfixIncDecOp": {
+      "type": "string",
+      "enum": [
+        "Inc",
+        "Dec"
+      ]
+    },
+    "CPostfixIncDecExpr": {
+      "type": "object",
+      "properties": {
+        "expr": {
+          "$ref": "#/$defs/CExpr"
+        },
+        "op": {
+          "$ref": "#/$defs/CPostfixIncDecOp"
+        }
+      },
+      "required": [
+        "expr",
+        "op"
+      ]
+    },
+    "CUnaryOp": {
+      "type": "string",
+      "enum": [
+        "Plus",
+        "Minus",
+        "Not",
+        "BitNot",
+        "Deref",
+        "AddrOf",
+        "SizeOf",
+        "AlignOf",
+        "Inc",
+        "Dec"
+      ]
+    },
+    "CUnaryExpr": {
+      "type": "object",
+      "properties": {
+        "expr": {
+          "$ref": "#/$defs/CExpr"
+        },
+        "op": {
+          "$ref": "#/$defs/CUnaryOp"
+        }
+      },
+      "required": [
+        "expr",
+        "op"
+      ]
+    },
+    "CCastExpr": {
+      "type": "object",
+      "properties": {
+        "expr": {
+          "$ref": "#/$defs/CExpr"
+        },
+        "ty": {
+          "$ref": "#/$defs/CExpr"
+        }
+      },
+      "required": [
+        "expr",
+        "ty"
+      ]
+    },
+    "CBinaryOp": {
+      "type": "string",
+      "enum": [
+        "Mul",
+        "Div",
+        "Mod",
+        "Add",
+        "Sub",
+        "Shl",
+        "Shr",
+        "Less",
+        "Greater",
+        "LessEq",
+        "GreaterEq",
+        "Eq",
+        "NotEq",
+        "BitAnd",
+        "BitXor",
+        "BitOr",
+        "And",
+        "Or",
+        "Xor",
+        "Assign",
+        "MulAssign",
+        "DivAssign",
+        "ModAssign",
+        "AddAssign",
+        "SubAssign",
+        "ShlAssign",
+        "ShrAssign",
+        "BitAndAssign",
+        "BitXorAssign",
+        "BitOrAssign",
+        "AndAssign",
+        "OrAssign",
+        "XorAssign",
+        "Comma"
+      ]
+    },
+    "CBinaryExpr": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "$ref": "#/$defs/CBinaryOp"
+        },
+        "lhs": {
+          "$ref": "#/$defs/CExpr"
+        },
+        "rhs": {
+          "$ref": "#/$defs/CExpr"
+        }
+      },
+      "required": [
+        "op",
+        "lhs",
+        "rhs"
+      ]
+    },
+    "CConditionalExpr": {
+      "type": "object",
+      "properties": {
+        "cond": {
+          "$ref": "#/$defs/CExpr"
+        },
+        "then": {
+          "$ref": "#/$defs/CExpr"
+        },
+        "otherwise": {
+          "$ref": "#/$defs/CExpr"
+        }
+      },
+      "required": [
+        "cond",
+        "then",
+        "otherwise"
+      ]
+    },
+    "Constant": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "$ref": "#/$defs/Type"
+        },
+        "expr": {
+          "$ref": "#/$defs/CExpr"
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "ty",
+        "expr"
+      ]
+    },
+    "Type": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "IdentifierType"
+            }
+          },
+          "$ref": "#/$defs/IdentifierType",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "ArrayType"
+            }
+          },
+          "$ref": "#/$defs/ArrayType",
+          "required": [
+            "$kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "PointerType"
+            }
+          },
+          "$ref": "#/$defs/PointerType",
+          "required": [
+            "$kind"
+          ]
+        }
+      ]
+    },
+    "IdentifierType": {
+      "type": "object",
+      "properties": {
+        "ident": {
+          "$ref": "#/$defs/Identifier"
+        }
+      },
+      "required": [
+        "ident"
+      ]
+    },
+    "ArrayType": {
+      "type": "object",
+      "properties": {
+        "element": {
+          "$ref": "#/$defs/Type"
+        },
+        "length": {
+          "$ref": "#/$defs/CExpr"
+        }
+      },
+      "required": [
+        "element",
+        "length"
+      ]
+    },
+    "PointerType": {
+      "type": "object",
+      "properties": {
+        "pointee": {
+          "$ref": "#/$defs/Type"
+        },
+        "isConst": {
+          "type": "boolean"
+        },
+        "pointerToOne": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "pointee",
+        "isConst",
+        "pointerToOne"
+      ]
+    },
+    "Command": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Param"
+          }
+        },
+        "result": {
+          "$ref": "#/$defs/Type"
+        },
+        "successCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CExpr"
+          }
+        },
+        "errorCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CExpr"
+          }
+        },
+        "aliasTo": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "params",
+        "result",
+        "successCodes",
+        "errorCodes"
+      ]
+    },
+    "Param": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "$ref": "#/$defs/Type"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "len": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "argLen": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "ty",
+        "optional"
+      ]
+    },
+    "Enumeration": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EnumVariant"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "variants"
+      ]
+    },
+    "EnumVariant": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/CExpr"
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "value"
+      ]
+    },
+    "FunctionTypedef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Param"
+          }
+        },
+        "result": {
+          "$ref": "#/$defs/Type"
+        },
+        "isPointer": {
+          "type": "boolean"
+        },
+        "isNativeApi": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "params",
+        "result",
+        "isPointer",
+        "isNativeApi"
+      ]
+    },
+    "OpaqueTypedef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc"
+      ]
+    },
+    "OpaqueHandleTypedef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc"
+      ]
+    },
+    "Structure": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Member"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "members"
+      ]
+    },
+    "Member": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "$ref": "#/$defs/Type"
+        },
+        "bits": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "init": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "len": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "altLen": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "ty",
+        "bits",
+        "optional"
+      ]
+    }
+  }
+}

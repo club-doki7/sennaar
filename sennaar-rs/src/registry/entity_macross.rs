@@ -1,6 +1,7 @@
 macro_rules! entity {
     ($name:ident, $($field:ident: $type:ty),* $(,)?) => {
         #[derive(Debug, Clone, Serialize, Deserialize)]
+        #[derive(JsonSchema)]
         #[serde(rename_all = "camelCase")]
         pub struct $name {
             pub name: crate::Identifier,
@@ -61,6 +62,7 @@ macro_rules! entity {
 macro_rules! entity_a {
     ($name:ident, $($field:ident: $type:ty),* $(,)?) => {
         #[derive(Debug, Clone, Serialize, Deserialize)]
+        #[derive(JsonSchema)]
         #[serde(rename_all = "camelCase")]
         pub struct $name<'a> {
             pub name: crate::Identifier,

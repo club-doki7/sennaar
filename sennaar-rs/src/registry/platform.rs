@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::str::FromStr;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 include!("../macross.rs");
@@ -25,6 +26,7 @@ ss_enum_wcustom! {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(JsonSchema)]
 pub struct Platform {
     pub arch: Option<Arch>,
     pub endian: Option<Endian>,
