@@ -218,6 +218,7 @@
         {
           "type": "string",
           "enum": [
+            "DefaultArch",
             "I386",
             "X86_64",
             "AArch64",
@@ -241,6 +242,7 @@
         {
           "type": "string",
           "enum": [
+            "DefaultOS",
             "Windows",
             "Linux",
             "MacOS"
@@ -256,6 +258,7 @@
         {
           "type": "string",
           "enum": [
+            "DefaultLibC",
             "MUSL",
             "GLIBC",
             "MSFT"

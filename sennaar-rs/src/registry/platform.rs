@@ -9,7 +9,7 @@ include!("../macross.rs");
 
 ss_enum_wcustom! {
     Arch,
-    I386, X86_64, AArch64, RiscV64
+    DefaultArch, I386, X86_64, AArch64, RiscV64
 }
 
 ss_enum! {
@@ -18,12 +18,12 @@ ss_enum! {
 
 ss_enum_wcustom! {
     OS,
-    Windows, Linux, MacOS
+    DefaultOS, Windows, Linux, MacOS
 }
 
 ss_enum_wcustom! {
     LibC,
-    MUSL, GLIBC, MSFT
+    DefaultLibC, MUSL, GLIBC, MSFT
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
