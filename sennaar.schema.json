@@ -203,7 +203,20 @@
       }
     },
     "Arch": {
-      "type": "string"
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "I386",
+            "X86_64",
+            "AArch64",
+            "RiscV64"
+          ]
+        }
+      ]
     },
     "Endian": {
       "type": "string",
@@ -213,10 +226,34 @@
       ]
     },
     "OS": {
-      "type": "string"
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "Windows",
+            "Linux",
+            "MacOS"
+          ]
+        }
+      ]
     },
     "LibC": {
-      "type": "string"
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "MUSL",
+            "GLIBC",
+            "MSFT"
+          ]
+        }
+      ]
     },
     "Typedef": {
       "type": "object",

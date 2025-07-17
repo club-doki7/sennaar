@@ -57,7 +57,17 @@ macro_rules! ss_enum_wcustom {
             }
 
             fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
-                schemars::json_schema!({ "type": "string" })
+                schemars::json_schema!({
+                    "oneOf": [
+                        { "type": "string" },
+                        {
+                            "type": "string",
+                            "enum": [
+                                $(stringify!($variant)),+
+                            ]
+                        }
+                    ]
+                })
             }
         }
 
