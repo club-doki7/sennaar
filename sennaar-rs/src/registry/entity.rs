@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::registry::{Metadata, Platform};
+use crate::cpl::CExpr;
+use crate::registry::{Metadata, Platform, Type};
 use crate::Identifier;
 
 pub trait Entity<'de> : Eq + Ord + Serialize + Deserialize<'de> {
@@ -26,67 +27,99 @@ pub trait Entity<'de> : Eq + Ord + Serialize + Deserialize<'de> {
     }
 }
 
-macro_rules! entity {
-    ($name:ident, $($field:ident: $type:ty),* $(,)?) => {
-        #[derive(Debug, Clone, Serialize, Deserialize)]
-        #[serde(rename_all = "camelCase")]
-        pub struct $name {
-            pub name: crate::Identifier,
-            pub metadata: HashMap<String, Metadata>,
-            pub doc: Vec<String>,
-            pub platform: Option<crate::registry::Platform>,
-            $(pub $field: $type),*
-        }
-
-        impl PartialEq for $name {
-            fn eq(&self, other: &Self) -> bool {
-                self.name == other.name
-            }
-        }
-
-        impl Eq for $name {}
-
-        impl PartialOrd for $name {
-            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-                Some(self.cmp(other))
-            }
-        }
-
-        impl Ord for $name {
-            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-                self.name.cmp(&other.name)
-            }
-        }
-
-        impl<'de> Entity<'de> for $name {
-            fn entity_name(&self) -> &Identifier {
-                &self.name
-            }
-
-            fn entity_metadata(&self) -> &HashMap<String, Metadata> {
-                &self.metadata
-            }
-
-            fn entity_metadata_mut(&mut self) -> &mut HashMap<String, Metadata> {
-                &mut self.metadata
-            }
-
-            fn entity_doc(&self) -> &[String] {
-                &self.doc
-            }
-
-            fn entity_doc_mut(&mut self) -> &mut Vec<String> {
-                &mut self.doc
-            }
-
-            fn entity_platform(&self) -> Option<&crate::registry::Platform> {
-                self.platform.as_ref()
-            }
-        }
-    };
-}
+include!("../macross.rs");
+include!("entity_macross.rs");
 
 entity!{
     Typedef,
     target: Identifier,
+}
+
+ss_enum! {
+    Bitwidth, Bit32, Bit64
+}
+
+entity_a!{
+    Bitmask,
+    bitwidth: Bitwidth,
+    bitflags: Vec<Bitflag<'a>>
+}
+
+entity_a!{
+    Bitflag,
+    value: CExpr<'a>
+}
+
+entity_a!{
+    Command,
+    params: Vec<Param<'a>>,
+    result: Type<'a>,
+    success_codes: Vec<CExpr<'a>>,
+    error_codes: Vec<CExpr<'a>>,
+    alias_to: Option<Identifier>
+}
+
+entity_a!{
+    Param,
+    ty: Type<'a>,
+    optional: bool,
+    len: Option<CExpr<'a>>,
+    arg_len: Option<CExpr<'a>>
+}
+
+entity_a!{
+    Constant,
+    ty: Type<'a>,
+    expr: CExpr<'a>,
+}
+
+entity_a!{
+    Enumeration,
+    variants: Vec<EnumVariant<'a>>,
+}
+
+entity_a!{
+    EnumVariant,
+    value: CExpr<'a>
+}
+
+entity_a!{
+    FunctionTypedef,
+    params: Vec<Param<'a>>,
+    result: Type<'a>,
+    is_pointer: bool,
+    is_native_api: bool
+}
+
+entity!{OpaqueTypedef,}
+
+entity!{OpaqueHandleTypedef,}
+
+entity_a!{
+    Structure,
+    members: Vec<Member<'a>>,
+}
+
+entity_a!{
+    Member,
+    ty: Type<'a>,
+    bits: usize,
+    init: Option<CExpr<'a>>,
+    optional: bool,
+    len: Option<CExpr<'a>>,
+    alt_len: Option<CExpr<'a>>,
+}
+
+entity_a!{
+    Registry,
+    aliases: HashMap<Identifier, Typedef>,
+    bitmasks: HashMap<Identifier, Bitmask<'a>>,
+    constants: HashMap<Identifier, Constant<'a>>,
+    commands: HashMap<Identifier, Command<'a>>,
+    enumerations: HashMap<Identifier, Enumeration<'a>>,
+    function_typedefs: HashMap<Identifier, FunctionTypedef<'a>>,
+    opaque_typedefs: HashMap<Identifier, OpaqueTypedef>,
+    opaque_handle_typedefs: HashMap<Identifier, OpaqueHandleTypedef>,
+    structures: HashMap<Identifier, Structure<'a>>,
+    unions: HashMap<Identifier, Structure<'a>>
 }
