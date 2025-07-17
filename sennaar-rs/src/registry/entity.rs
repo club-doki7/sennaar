@@ -7,6 +7,7 @@ use crate::cpl::CExpr;
 use crate::registry::{Metadata, Platform, Type};
 use crate::Identifier;
 
+
 pub trait Entity<'de> : Eq + Ord + Serialize + Deserialize<'de> {
     fn entity_name(&self) -> &Identifier;
     fn entity_metadata(&self) -> &HashMap<String, Metadata>;

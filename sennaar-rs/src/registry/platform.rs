@@ -4,6 +4,7 @@ use std::str::FromStr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+
 include!("../macross.rs");
 
 ss_enum_wcustom! {
