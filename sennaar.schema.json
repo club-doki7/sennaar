@@ -965,12 +965,16 @@
         },
         "pointerToOne": {
           "type": "boolean"
+        },
+        "nullable": {
+          "type": "boolean"
         }
       },
       "required": [
         "pointee",
         "isConst",
-        "pointerToOne"
+        "pointerToOne",
+        "nullable"
       ]
     },
     "Command": {

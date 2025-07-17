@@ -33,5 +33,6 @@ pub struct ArrayType<'a> {
 pub struct PointerType<'a> {
     pub pointee: Type<'a>,
     pub is_const: bool,
-    pub pointer_to_one: bool
+    pub pointer_to_one: bool,
+    pub nullable: bool
 }
