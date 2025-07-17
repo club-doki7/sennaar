@@ -1,5 +1,5 @@
 use schemars::schema_for;
-use sennaar_rs::registry::Registry;
+use sennaar::registry::Registry;
 
 fn main() {
     let schema = schema_for!(Registry);
