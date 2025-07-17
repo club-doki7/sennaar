@@ -9,6 +9,6 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "$kind")]
 pub enum Metadata {
     None,
-    String(String),
-    KeyValues(HashMap<String, Metadata>),
+    String { value: String },
+    KeyValues { kvs: HashMap<String, Metadata> },
 }

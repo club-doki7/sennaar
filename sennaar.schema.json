@@ -133,28 +133,36 @@
         {
           "type": "object",
           "properties": {
+            "value": {
+              "type": "string"
+            },
             "$kind": {
               "type": "string",
               "const": "String"
             }
           },
           "required": [
-            "$kind"
+            "$kind",
+            "value"
           ]
         },
         {
           "type": "object",
           "properties": {
+            "kvs": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Metadata"
+              }
+            },
             "$kind": {
               "type": "string",
               "const": "KeyValues"
             }
           },
-          "additionalProperties": {
-            "$ref": "#/$defs/Metadata"
-          },
           "required": [
-            "$kind"
+            "$kind",
+            "kvs"
           ]
         }
       ]
