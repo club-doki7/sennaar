@@ -32,9 +32,9 @@ pub trait Entity<'de> : Eq + Ord + Serialize + Deserialize<'de> {
 include!("../macross.rs");
 include!("entity_macross.rs");
 
-entity!{
+entity_a!{
     Typedef,
-    target: Identifier,
+    target: Type<'a>,
 }
 ss_enum! {
     Bitwidth, Bit32, Bit64
@@ -184,7 +184,7 @@ impl Ord for Import {
 entity_a!{
     Registry,
     imports: BTreeSet<Import>,
-    aliases: HashMap<Identifier, Typedef>,
+    aliases: HashMap<Identifier, Typedef<'a>>,
     bitmasks: HashMap<Identifier, Bitmask<'a>>,
     commands: HashMap<Identifier, Command<'a>>,
     constants: HashMap<Identifier, Constant<'a>>,

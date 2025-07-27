@@ -23,7 +23,7 @@ sealed class Entity {
 @Serializable
 data class Typedef(
     override var name: Identifier,
-    var target: Identifier
+    var target: Type
 ) : Entity()
 
 @Serializable
