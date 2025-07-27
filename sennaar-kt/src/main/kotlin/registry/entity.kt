@@ -3,8 +3,6 @@ package club.doki7.sennaar.registry
 import club.doki7.sennaar.Identifier
 import club.doki7.sennaar.cpl.CExpr
 import kotlinx.serialization.Serializable
-import java.lang.reflect.Member
-import java.util.TreeSet
 
 sealed class Entity {
     abstract var name: Identifier
