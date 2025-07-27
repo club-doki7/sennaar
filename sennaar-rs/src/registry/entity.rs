@@ -186,8 +186,8 @@ entity_a!{
     imports: BTreeSet<Import>,
     aliases: HashMap<Identifier, Typedef>,
     bitmasks: HashMap<Identifier, Bitmask<'a>>,
-    constants: HashMap<Identifier, Constant<'a>>,
     commands: HashMap<Identifier, Command<'a>>,
+    constants: HashMap<Identifier, Constant<'a>>,
     enumerations: HashMap<Identifier, Enumeration<'a>>,
     function_typedefs: HashMap<Identifier, FunctionTypedef<'a>>,
     opaque_typedefs: HashMap<Identifier, OpaqueTypedef>,
@@ -238,6 +238,7 @@ impl<'a> Registry<'a> {
         }
     }
 
+    // TODO: Unlikly, but how to deal with colliding items?
     pub fn merge_with(&mut self, other: Self) {
         self.imports.extend(other.imports);
         self.aliases.extend(other.aliases);
