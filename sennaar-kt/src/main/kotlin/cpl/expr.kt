@@ -9,46 +9,46 @@ sealed interface CExpr
 
 @Serializable
 @SerialName("IntLiteral")
-class CIntLiteralExpr(var value: String, var suffix: String) : CExpr
+data class CIntLiteralExpr(var value: String, var suffix: String) : CExpr
 
 @Serializable
 @SerialName("FloatLiteral")
-class CFloatLiteralExpr(var value: String, var suffix: String) : CExpr
+data class CFloatLiteralExpr(var value: String, var suffix: String) : CExpr
 
 @Serializable
 @SerialName("CharLiteral")
-class CCharLiteralExpr(var value: String) : CExpr
+data class CCharLiteralExpr(var value: String) : CExpr
 
 @Serializable
 @SerialName("StringLiteral")
-class CStringLiteralExpr(var value: String) : CExpr
+data class CStringLiteralExpr(var value: String) : CExpr
 
 @Serializable
 @SerialName("Identifier")
-class CIdentifierExpr(var ident: Identifier) : CExpr
+data class CIdentifierExpr(var ident: Identifier) : CExpr
 
 @Serializable
 @SerialName("Index")
-class CIndexExpr(var base: CExpr, var index: CExpr) : CExpr
+data class CIndexExpr(var base: CExpr, var index: CExpr) : CExpr
 
 @Serializable
 @SerialName("Call")
-class CCallExpr(var callee: CExpr, var args: List<CExpr>) : CExpr
+data class CCallExpr(var callee: CExpr, var args: List<CExpr>) : CExpr
 
 @Serializable
 @SerialName("Member")
-class CMemberExpr(var obj: CExpr, var member: Identifier) : CExpr
+data class CMemberExpr(var obj: CExpr, var member: Identifier) : CExpr
 
 @Serializable
 @SerialName("PtrMember")
-class CPtrMemberExpr(var obj: CExpr, var member: Identifier) : CExpr
+data class CPtrMemberExpr(var obj: CExpr, var member: Identifier) : CExpr
 
 @Serializable
 enum class CPostfixIncDecOp { Inc, Dec }
 
 @Serializable
 @SerialName("PostfixIncDec")
-class CPostfixIncDecExpr(var base: CExpr, var op: CPostfixIncDecOp) : CExpr
+data class CPostfixIncDecExpr(var base: CExpr, var op: CPostfixIncDecOp) : CExpr
 
 @Serializable
 enum class CUnaryOp {
@@ -57,11 +57,11 @@ enum class CUnaryOp {
 
 @Serializable
 @SerialName("Unary")
-class CUnaryExpr(var expr: CExpr, var op: CUnaryOp) : CExpr
+data class CUnaryExpr(var expr: CExpr, var op: CUnaryOp) : CExpr
 
 @Serializable
 @SerialName("Cast")
-class CCastExpr(var expr: CExpr, var type: CExpr) : CExpr
+data class CCastExpr(var expr: CExpr, var type: CExpr) : CExpr
 
 @Serializable
 enum class CBinaryOp {
@@ -82,8 +82,8 @@ enum class CBinaryOp {
 
 @Serializable
 @SerialName("Binary")
-class CBinaryExpr(var op: CBinaryOp, var left: CExpr, var right: CExpr) : CExpr
+data class CBinaryExpr(var op: CBinaryOp, var left: CExpr, var right: CExpr) : CExpr
 
 @Serializable
 @SerialName("Conditional")
-class CConditionalExpr(var cond: CExpr, var then: CExpr, var otherwise: CExpr) : CExpr
+data class CConditionalExpr(var cond: CExpr, var then: CExpr, var otherwise: CExpr) : CExpr
