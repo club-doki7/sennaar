@@ -22,7 +22,7 @@ sealed interface Arch {
     object X86 : Arch { override fun toString(): String = "x86" }
     object X86_64 : Arch { override fun toString(): String = "x86_64" }
     object AArch64 : Arch { override fun toString(): String = "aarch64" }
-    class RiscV64 : Arch { override fun toString(): String = "riscv64" }
+    object RiscV64 : Arch { override fun toString(): String = "riscv64" }
     data class Custom(val name: String) : Arch {
         override fun toString(): String = name
     }
@@ -33,7 +33,7 @@ fun parseArch(name: String): Arch {
         "x86" -> X86
         "x86_64" -> X86_64
         "aarch64" -> AArch64
-        "riscv64" -> RiscV64()
+        "riscv64" -> RiscV64
         else -> Custom(name)
     }
 }
@@ -44,11 +44,11 @@ object ArchSerializer : KSerializer<Arch> {
     override fun deserialize(decoder: Decoder): Arch {
         val archName = decoder.decodeString()
         return when (archName) {
-            "x86" -> Arch.X86
-            "x86_64" -> Arch.X86_64
-            "aarch64" -> Arch.AArch64
-            "riscv64" -> Arch.RiscV64()
-            else -> Arch.Custom(archName)
+            "x86" -> X86
+            "x86_64" -> X86_64
+            "aarch64" -> AArch64
+            "riscv64" -> RiscV64
+            else -> Custom(archName)
         }
     }
 

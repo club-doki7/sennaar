@@ -19,4 +19,4 @@ data class PointerType(
     var isConst: Boolean,
     var pointerToOne: Boolean,
     var nullable: Boolean
-)
+) : Type
