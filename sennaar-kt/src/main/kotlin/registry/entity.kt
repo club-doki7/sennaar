@@ -4,10 +4,6 @@ import club.doki7.sennaar.Identifier
 import club.doki7.sennaar.cpl.CExpr
 import club.doki7.sennaar.interned
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
 
 sealed class Entity {
     abstract var name: Identifier
@@ -108,8 +104,8 @@ data class Param(
     constructor(
         name: String,
         ty: Type,
-        optional: Boolean = true,
-        len: CExpr? = null
+        optional: Boolean,
+        len: CExpr?
     ) : this(name.interned(), ty, optional, len)
 
     fun sanitize() {
@@ -220,10 +216,10 @@ data class Member(
     constructor(
         name: String,
         ty: Type,
-        bits: Int? = null,
-        init: CExpr? = null,
-        optional: Boolean = false,
-        len: CExpr? = null
+        bits: Int?,
+        init: CExpr?,
+        optional: Boolean,
+        len: CExpr?
     ) : this(name.interned(), ty, bits, init, optional, len)
 }
 

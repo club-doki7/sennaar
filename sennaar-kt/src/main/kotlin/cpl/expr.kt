@@ -86,7 +86,7 @@ enum class CBinaryOp {
 
 @Serializable
 @SerialName("Binary")
-data class CBinaryExpr(var op: CBinaryOp, var left: CExpr, var right: CExpr) : CExpr
+data class CBinaryExpr(var op: CBinaryOp, var lhs: CExpr, var rhs: CExpr) : CExpr
 
 @Serializable
 @SerialName("Conditional")
