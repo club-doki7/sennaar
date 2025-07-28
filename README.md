@@ -1,6 +1,6 @@
 ## Sennaar
 
-[![Rust CI](https://github.com/club-doki7/sennaar/actions/workflows/rust.yml/badge.svg)](https://github.com/club-doki7/sennaar/actions/workflows/rust.yml)
+[![Rust CI](https://github.com/club-doki7/sennaar/actions/workflows/rust.yml/badge.svg)](https://github.com/club-doki7/sennaar/actions/workflows/rust.yml) [![jitpack.io](https://jitpack.io/v/club-doki7/sennaar.svg)](https://jitpack.io/#club-doki7/sennaar)
 
 General-purposed C programming language API metadata registry
 
