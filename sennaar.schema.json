@@ -1264,16 +1264,6 @@
               "type": "null"
             }
           ]
-        },
-        "argLen": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CExpr"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       },
       "required": [
@@ -1563,7 +1553,10 @@
           "$ref": "#/$defs/Type"
         },
         "bits": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "format": "uint",
           "minimum": 0
         },
@@ -1589,16 +1582,6 @@
               "type": "null"
             }
           ]
-        },
-        "altLen": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CExpr"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       },
       "required": [
@@ -1606,7 +1589,6 @@
         "metadata",
         "doc",
         "ty",
-        "bits",
         "optional"
       ]
     }

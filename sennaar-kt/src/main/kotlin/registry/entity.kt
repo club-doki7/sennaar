@@ -2,6 +2,7 @@ package club.doki7.sennaar.registry
 
 import club.doki7.sennaar.Identifier
 import club.doki7.sennaar.cpl.CExpr
+import club.doki7.sennaar.interned
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -36,7 +37,12 @@ sealed class Entity {
 data class Typedef(
     override var name: Identifier,
     var target: Type
-) : Entity()
+) : Entity() {
+    constructor(
+        name: String,
+        target: Type
+    ) : this(name.interned(), target)
+}
 
 @Serializable
 enum class Bitwidth { Bit32, Bit64 }
@@ -46,13 +52,24 @@ data class Bitmask(
     override var name: Identifier,
     var bitwidth: Bitwidth,
     var bitflags: MutableList<Bitflag>
-) : Entity()
+) : Entity() {
+    constructor(
+        name: String,
+        bitwidth: Bitwidth,
+        bitflags: MutableList<Bitflag>
+    ) : this(name.interned(), bitwidth, bitflags)
+}
 
 @Serializable
 data class Bitflag(
     override var name: Identifier,
     var value: CExpr
-) : Entity()
+) : Entity() {
+    constructor(
+        name: String,
+        value: CExpr
+    ) : this(name.interned(), value)
+}
 
 @Serializable
 data class Command(
@@ -63,6 +80,15 @@ data class Command(
     var errorCodes: MutableList<CExpr>,
     var aliasTo: Identifier?
 ) : Entity() {
+    constructor(
+        name: String,
+        params: MutableList<Param>,
+        result: Type,
+        successCodes: MutableList<CExpr>,
+        errorCodes: MutableList<CExpr>,
+        aliasTo: Identifier? = null
+    ) : this(name.interned(), params, result, successCodes, errorCodes, aliasTo)
+
     fun sanitize() {
         params.forEach { it.sanitize() }
     }
@@ -79,6 +105,13 @@ data class Param(
     var optional: Boolean,
     var len: CExpr?
 ) : Entity() {
+    constructor(
+        name: String,
+        ty: Type,
+        optional: Boolean = true,
+        len: CExpr? = null
+    ) : this(name.interned(), ty, optional, len)
+
     fun sanitize() {
         val ptrType = ty as? PointerType
         if (ptrType != null && ptrType.nullable != optional) {
@@ -99,19 +132,35 @@ data class Constant(
     override var name: Identifier,
     var ty: Type,
     var expr: CExpr
-) : Entity()
+) : Entity() {
+    constructor(
+        name: String,
+        ty: Type,
+        expr: CExpr
+    ) : this(name.interned(), ty, expr)
+}
 
 @Serializable
 data class Enumeration(
     override var name: Identifier,
     var variants: MutableList<EnumVariant>
-) : Entity()
+) : Entity() {
+    constructor(
+        name: String,
+        variants: MutableList<EnumVariant>
+    ) : this(name.interned(), variants)
+}
 
 @Serializable
 data class EnumVariant(
     override var name: Identifier,
     var value: CExpr
-) : Entity()
+) : Entity() {
+    constructor(
+        name: String,
+        value: CExpr
+    ) : this(name.interned(), value)
+}
 
 @Serializable
 data class FunctionTypedef(
@@ -121,6 +170,14 @@ data class FunctionTypedef(
     var isPointer: Boolean,
     var isNativeAPI: Boolean
 ) : Entity() {
+    constructor(
+        name: String,
+        params: MutableList<Param>,
+        result: Type,
+        isPointer: Boolean,
+        isNativeAPI: Boolean
+    ) : this(name.interned(), params, result, isPointer, isNativeAPI)
+
     fun sanitize() {
         params.forEach { it.sanitize() }
     }
@@ -131,16 +188,25 @@ data class FunctionTypedef(
 }
 
 @Serializable
-data class OpaqueTypedef(override var name: Identifier) : Entity()
+data class OpaqueTypedef(override var name: Identifier) : Entity() {
+    constructor(name: String) : this(name.interned())
+}
 
 @Serializable
-data class OpaqueHandleTypedef(override var name: Identifier) : Entity()
+data class OpaqueHandleTypedef(override var name: Identifier) : Entity() {
+    constructor(name: String) : this(name.interned())
+}
 
 @Serializable
 data class Structure(
     override var name: Identifier,
     var members: MutableList<Member>
-) : Entity()
+) : Entity() {
+    constructor(
+        name: String,
+        members: MutableList<Member>
+    ) : this(name.interned(), members)
+}
 
 @Serializable
 data class Member(
@@ -150,7 +216,16 @@ data class Member(
     var init: CExpr?,
     var optional: Boolean,
     var len: CExpr?
-) : Entity()
+) : Entity() {
+    constructor(
+        name: String,
+        ty: Type,
+        bits: Int? = null,
+        init: CExpr? = null,
+        optional: Boolean = false,
+        len: CExpr? = null
+    ) : this(name.interned(), ty, bits, init, optional, len)
+}
 
 @Serializable
 data class Import(

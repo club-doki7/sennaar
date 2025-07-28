@@ -78,8 +78,7 @@ entity_a!{
     Param,
     ty: Type<'a>,
     optional: bool,
-    len: Option<CExpr<'a>>,
-    arg_len: Option<CExpr<'a>>
+    len: Option<CExpr<'a>>
 }
 
 impl<'a> Param<'a> {
@@ -146,11 +145,10 @@ entity_a!{
 entity_a!{
     Member,
     ty: Type<'a>,
-    bits: usize,
+    bits: Option<usize>,
     init: Option<CExpr<'a>>,
     optional: bool,
-    len: Option<CExpr<'a>>,
-    alt_len: Option<CExpr<'a>>,
+    len: Option<CExpr<'a>>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
