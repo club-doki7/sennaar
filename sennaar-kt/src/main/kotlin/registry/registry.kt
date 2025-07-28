@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 
-interface RegistryBase {
+interface IRegistry {
     var name: String
     var imports: MutableSet<Import>
     var aliases: MutableMap<Identifier, Typedef>
@@ -29,7 +29,7 @@ interface RegistryBase {
         functionTypedefs.values.forEach { it.sanitizeFix() }
     }
 
-    fun mergeBaseWith(other: RegistryBase) {
+    fun mergeBaseWith(other: IRegistry) {
         // TODO: unlikely, but how to deal with colliding items?
         imports.addAll(other.imports)
         aliases.putAll(other.aliases)
@@ -60,7 +60,7 @@ data class Registry(
     override var structs: MutableMap<Identifier, Structure>,
     override var unions: MutableMap<Identifier, Structure>,
     var ext: JsonElement
-) : RegistryBase {
+) : IRegistry {
     constructor(name: String) : this(
         name,
         imports = mutableSetOf(),
@@ -92,7 +92,7 @@ data class RegistryTE<EXT>(
     override var structs: MutableMap<Identifier, Structure>,
     override var unions: MutableMap<Identifier, Structure>,
     var ext: EXT
-) : RegistryBase {
+) : IRegistry {
     constructor(name: String, ext: EXT) : this(
         name,
         imports = mutableSetOf(),

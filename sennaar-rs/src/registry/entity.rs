@@ -24,6 +24,45 @@ pub trait Entity<'de> : Sized + Eq + Ord + Serialize + Deserialize<'de> {
     fn get_metadata(&self, key: &str) -> &Metadata {
         self.try_get_metadata(key).unwrap()
     }
+
+    fn get_string_metadata(&self, key: &str) -> Option<&String> {
+        self.try_get_metadata(key).and_then(|meta| {
+            if let Metadata::String { value } = meta {
+                Some(value)
+            } else {
+                panic!("expected string metadata for key '{}', found {:?}", key, meta);
+            }
+        })
+    }
+
+    fn get_kvs_metadata(&self, key: &str) -> Option<&HashMap<String, Metadata>> {
+        self.try_get_metadata(key).and_then(|meta| {
+            if let Metadata::KeyValues { kvs } = meta {
+                Some(kvs)
+            } else {
+                panic!("expected key-values metadata for key '{}', found {:?}", key, meta);
+            }
+        })
+    }
+
+    fn put_metadata_kv(&mut self, key: impl ToString, value: Metadata) {
+        self.entity_metadata_mut().insert(key.to_string(), value);
+    }
+
+    fn put_metadata(&mut self, key: impl AsRef<str> + ToString) {
+        let metadata_mut = self.entity_metadata_mut();
+        if !metadata_mut.contains_key(key.as_ref()) {
+            metadata_mut.insert(key.to_string(), Metadata::None);
+        }
+    }
+
+    fn put_metadata_string(&mut self, key: impl ToString, value: impl ToString) {
+        self.put_metadata_kv(key, Metadata::String { value: value.to_string() });
+    }
+
+    fn put_metadata_kvs(&mut self, key: impl ToString, kvs: HashMap<String, Metadata>) {
+        self.put_metadata_kv(key, Metadata::KeyValues { kvs });
+    }
 }
 
 include!("../macross.rs");

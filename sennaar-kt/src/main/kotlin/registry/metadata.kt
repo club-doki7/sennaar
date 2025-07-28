@@ -15,3 +15,23 @@ sealed interface Metadata {
     @Serializable
     data class KeyValues(var kvs: MutableMap<String, Metadata>) : Metadata
 }
+
+class KeyValuesBuilder {
+    val kvs = mutableMapOf<String, Metadata>()
+
+    infix fun String.to(value: String) {
+        kvs[this] = Metadata.StringValue(value)
+    }
+
+    infix fun String.to(value: Metadata) {
+        kvs[this] = value
+    }
+}
+
+fun metadata(init: KeyValuesBuilder.() -> Unit): Metadata.KeyValues {
+    val builder = KeyValuesBuilder()
+    builder.init()
+    return Metadata.KeyValues(builder.kvs)
+}
+
+fun none(): Metadata.None = Metadata.None

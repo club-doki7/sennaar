@@ -27,6 +27,44 @@ sealed class Entity {
     fun rename(renamer: (String) -> String) {
         name.rename(renamer(name.value))
     }
+
+    fun hasMetadata(key: String): Boolean {
+        return metadata.containsKey(key)
+    }
+
+    fun getStringMetadata(key: String): String? {
+        return when (val meta = metadata[key]) {
+            is Metadata.StringValue -> meta.value
+            null -> null
+            else -> error("Metadata for key '$key' is not a StringValue: $meta")
+        }
+    }
+
+    fun getKeyValuesMetadata(key: String): MutableMap<String, Metadata>? {
+        return when (val meta = metadata[key]) {
+            is Metadata.KeyValues -> meta.kvs
+            null -> null
+            else -> error("Metadata for key '$key' is not a KeyValues: $meta")
+        }
+    }
+
+    fun putMetadata(key: String) {
+        if (!hasMetadata(key)) {
+            metadata[key] = Metadata.None
+        }
+    }
+
+    fun putMetadata(key: String, value: String) {
+        metadata[key] = Metadata.StringValue(value)
+    }
+
+    fun putMetadata(key: String, value: MutableMap<String, Metadata>) {
+        metadata[key] = Metadata.KeyValues(value)
+    }
+
+    fun getMetadata(key: String): Metadata? {
+        return metadata[key]
+    }
 }
 
 @Serializable
