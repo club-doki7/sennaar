@@ -181,28 +181,30 @@ impl Ord for Import {
     }
 }
 
-entity_a!{
-    Registry,
-    imports: BTreeSet<Import>,
-    aliases: HashMap<Identifier, Typedef<'a>>,
-    bitmasks: HashMap<Identifier, Bitmask<'a>>,
-    commands: HashMap<Identifier, Command<'a>>,
-    constants: HashMap<Identifier, Constant<'a>>,
-    enumerations: HashMap<Identifier, Enumeration<'a>>,
-    function_typedefs: HashMap<Identifier, FunctionTypedef<'a>>,
-    opaque_typedefs: HashMap<Identifier, OpaqueTypedef>,
-    opaque_handle_typedefs: HashMap<Identifier, OpaqueHandleTypedef>,
-    structs: HashMap<Identifier, Structure<'a>>,
-    unions: HashMap<Identifier, Structure<'a>>
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
+pub struct Registry<'a> {
+    pub name: String,
+    pub imports: BTreeSet<Import>,
+
+    pub aliases: HashMap<Identifier, Typedef<'a>>,
+    pub bitmasks: HashMap<Identifier, Bitmask<'a>>,
+    pub constants: HashMap<Identifier, Constant<'a>>,
+    pub commands: HashMap<Identifier, Command<'a>>,
+    pub enumerations: HashMap<Identifier, Enumeration<'a>>,
+    pub function_typedefs: HashMap<Identifier, FunctionTypedef<'a>>,
+    pub opaque_typedefs: HashMap<Identifier, OpaqueTypedef>,
+    pub opaque_handle_typedefs: HashMap<Identifier, OpaqueHandleTypedef>,
+    pub structs: HashMap<Identifier, Structure<'a>>,
+    pub unions: HashMap<Identifier, Structure<'a>>,
+
+    pub ext: serde_json::Value
 }
 
 impl<'a> Registry<'a> {
-    pub fn new(name: Identifier) -> Self {
+    pub fn new(name: String) -> Self {
         Self {
             name,
-            metadata: HashMap::new(),
-            doc: Vec::new(),
-            platform: None,
 
             imports: BTreeSet::new(),
             aliases: HashMap::new(),
@@ -214,7 +216,8 @@ impl<'a> Registry<'a> {
             opaque_typedefs: HashMap::new(),
             opaque_handle_typedefs: HashMap::new(),
             structs: HashMap::new(),
-            unions: HashMap::new()
+            unions: HashMap::new(),
+            ext: serde_json::Value::Null
         }
     }
 
@@ -238,8 +241,8 @@ impl<'a> Registry<'a> {
         }
     }
 
-    // TODO: Unlikly, but how to deal with colliding items?
-    pub fn merge_with(&mut self, other: Self) {
+    pub fn merge_with(&mut self, other: Self) -> Result<(), String> {
+        // TODO: Unlikly, but how to deal with colliding items?
         self.imports.extend(other.imports);
         self.aliases.extend(other.aliases);
         self.bitmasks.extend(other.bitmasks);
@@ -252,10 +255,25 @@ impl<'a> Registry<'a> {
         self.structs.extend(other.structs);
         self.unions.extend(other.unions);
 
-        for (key, value) in other.metadata {
-            self.metadata.entry(key).or_insert(value);
+        if self.ext.is_null() {
+            self.ext = other.ext;
+        } else if self.ext.is_array() && other.ext.is_array() {
+            let self_arr = self.ext.as_array_mut().unwrap();
+            let other_arr = other.ext.as_array().unwrap();
+            self_arr.extend(other_arr.iter().cloned());
+        } else if self.ext.is_object() && other.ext.is_object() {
+            let self_obj = self.ext.as_object_mut().unwrap();
+            let other_obj = other.ext.as_object().unwrap();
+            for (key, value) in other_obj {
+                self_obj.insert(key.clone(), value.clone());
+            }
+        } else {
+            return Err(format!(
+                "cannot merge registry {} and {}: ext {:?} and {:?} are not compatible",
+                self.name, other.name, self.ext, other.ext
+            ));
         }
 
-        self.doc.extend(other.doc);
+        Ok(())
     }
 }

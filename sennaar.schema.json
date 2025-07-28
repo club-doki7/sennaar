@@ -4,29 +4,7 @@
   "type": "object",
   "properties": {
     "name": {
-      "$ref": "#/$defs/Identifier"
-    },
-    "metadata": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/Metadata"
-      }
-    },
-    "doc": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "platform": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/Platform"
-        },
-        {
-          "type": "null"
-        }
-      ]
+      "type": "string"
     },
     "imports": {
       "type": "array",
@@ -47,16 +25,16 @@
         "$ref": "#/$defs/Bitmask"
       }
     },
-    "commands": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/Command"
-      }
-    },
     "constants": {
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/Constant"
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Command"
       }
     },
     "enumerations": {
@@ -65,19 +43,19 @@
         "$ref": "#/$defs/Enumeration"
       }
     },
-    "functionTypedefs": {
+    "function_typedefs": {
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/FunctionTypedef"
       }
     },
-    "opaqueTypedefs": {
+    "opaque_typedefs": {
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/OpaqueTypedef"
       }
     },
-    "opaqueHandleTypedefs": {
+    "opaque_handle_typedefs": {
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/OpaqueHandleTypedef"
@@ -94,27 +72,87 @@
       "additionalProperties": {
         "$ref": "#/$defs/Structure"
       }
-    }
+    },
+    "ext": true
   },
   "required": [
     "name",
-    "metadata",
-    "doc",
     "imports",
     "aliases",
     "bitmasks",
-    "commands",
     "constants",
+    "commands",
     "enumerations",
-    "functionTypedefs",
-    "opaqueTypedefs",
-    "opaqueHandleTypedefs",
+    "function_typedefs",
+    "opaque_typedefs",
+    "opaque_handle_typedefs",
     "structs",
-    "unions"
+    "unions",
+    "ext"
   ],
   "$defs": {
+    "Import": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "depend": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "depend"
+      ]
+    },
     "Identifier": {
       "type": "string"
+    },
+    "Typedef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/Type"
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "target"
+      ]
     },
     "Metadata": {
       "oneOf": [
@@ -428,66 +466,6 @@
             "$kind"
           ]
         }
-      ]
-    },
-    "Import": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "$ref": "#/$defs/Identifier"
-        },
-        "version": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "depend": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "name",
-        "depend"
-      ]
-    },
-    "Typedef": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "$ref": "#/$defs/Identifier"
-        },
-        "metadata": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/Metadata"
-          }
-        },
-        "doc": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "platform": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Platform"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "target": {
-          "$ref": "#/$defs/Type"
-        }
-      },
-      "required": [
-        "name",
-        "metadata",
-        "doc",
-        "target"
       ]
     },
     "Type": {
@@ -1130,6 +1108,49 @@
         "value"
       ]
     },
+    "Constant": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Metadata"
+          }
+        },
+        "doc": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ty": {
+          "$ref": "#/$defs/Type"
+        },
+        "expr": {
+          "$ref": "#/$defs/CExpr"
+        }
+      },
+      "required": [
+        "name",
+        "metadata",
+        "doc",
+        "ty",
+        "expr"
+      ]
+    },
     "Command": {
       "type": "object",
       "properties": {
@@ -1261,49 +1282,6 @@
         "doc",
         "ty",
         "optional"
-      ]
-    },
-    "Constant": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "$ref": "#/$defs/Identifier"
-        },
-        "metadata": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/Metadata"
-          }
-        },
-        "doc": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "platform": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Platform"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ty": {
-          "$ref": "#/$defs/Type"
-        },
-        "expr": {
-          "$ref": "#/$defs/CExpr"
-        }
-      },
-      "required": [
-        "name",
-        "metadata",
-        "doc",
-        "ty",
-        "expr"
       ]
     },
     "Enumeration": {

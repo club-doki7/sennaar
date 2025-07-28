@@ -3,6 +3,11 @@ package club.doki7.sennaar.registry
 import club.doki7.sennaar.Identifier
 import club.doki7.sennaar.cpl.CExpr
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 
 sealed class Entity {
     abstract var name: Identifier
@@ -144,7 +149,7 @@ data class Member(
 
 @Serializable
 data class Import(
-    var name: Identifier,
+    var name: String,
     var version: String?,
     var depend: Boolean
 ) {
@@ -168,7 +173,7 @@ data class Import(
 
 @Serializable
 data class Registry(
-    override var name: Identifier,
+    var name: String,
     var imports: MutableSet<Import>,
     var aliases: MutableMap<Identifier, Typedef>,
     var bitmasks: MutableMap<Identifier, Bitmask>,
@@ -179,8 +184,9 @@ data class Registry(
     var opaqueTypedefs: MutableMap<Identifier, OpaqueTypedef>,
     var opaqueHandleTypedefs: MutableMap<Identifier, OpaqueHandleTypedef>,
     var structs: MutableMap<Identifier, Structure>,
-    var unions: MutableMap<Identifier, Structure>
-) : Entity() {
+    var unions: MutableMap<Identifier, Structure>,
+    var ext: JsonElement
+)  {
     fun sanitize() {
         commands.values.forEach { it.sanitize() }
         functionTypedefs.values.forEach { it.sanitize() }
@@ -205,9 +211,25 @@ data class Registry(
         structs.putAll(other.structs)
         unions.putAll(other.unions)
 
-        other.metadata.forEach { (key, value) ->
-            metadata.put(key, value)
+        when (ext) {
+            is JsonNull -> {
+                ext = other.ext
+            }
+            is JsonArray if other.ext is JsonArray -> {
+                val extArray = ext as JsonArray
+                val otherExtArray = other.ext as JsonArray
+                ext = JsonArray(extArray + otherExtArray)
+            }
+            is JsonObject if other.ext is JsonObject -> {
+                val extObject = ext as JsonObject
+                val otherExtObject = other.ext as JsonObject
+                val mergedMap = extObject.toMutableMap()
+                mergedMap.putAll(otherExtObject)
+                ext = JsonObject(mergedMap)
+            }
+            else -> {
+                error("cannot merge registry $name and ${other.name}: ext $ext and ${other.ext} are not compatible")
+            }
         }
-        doc.addAll(other.doc)
     }
 }
