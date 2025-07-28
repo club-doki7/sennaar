@@ -43,19 +43,19 @@
         "$ref": "#/$defs/Enumeration"
       }
     },
-    "function_typedefs": {
+    "functionTypedefs": {
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/FunctionTypedef"
       }
     },
-    "opaque_typedefs": {
+    "opaqueTypedefs": {
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/OpaqueTypedef"
       }
     },
-    "opaque_handle_typedefs": {
+    "opaqueHandleTypedefs": {
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/OpaqueHandleTypedef"
@@ -83,9 +83,9 @@
     "constants",
     "commands",
     "enumerations",
-    "function_typedefs",
-    "opaque_typedefs",
-    "opaque_handle_typedefs",
+    "functionTypedefs",
+    "opaqueTypedefs",
+    "opaqueHandleTypedefs",
     "structs",
     "unions",
     "ext"

@@ -1,9 +1,10 @@
 macro_rules! entity {
-    ($name:ident, $($field:ident: $type:ty),* $(,)?) => {
+    ($name:ident $(<$lifetime:lifetime>)?, $($field:ident: $type:ty),* $(,)?) => {
         #[derive(Debug, Clone, Serialize, Deserialize)]
         #[derive(JsonSchema)]
         #[serde(rename_all = "camelCase")]
-        pub struct $name {
+        #[repr(C)]
+        pub struct $name$(<$lifetime>)? {
             pub name: crate::Identifier,
             pub metadata: HashMap<String, Metadata>,
             pub doc: Vec<String>,
@@ -11,11 +12,7 @@ macro_rules! entity {
             $(pub $field: $type),*
         }
 
-        impl<'de> Entity<'de> for $name {
-            fn entity_name(&self) -> &Identifier {
-                &self.name
-            }
-
+        impl<'de $(,$lifetime)?> Entity<'de> for $name$(<$lifetime>)? {
             fn entity_metadata(&self) -> &HashMap<String, Metadata> {
                 &self.metadata
             }
@@ -23,35 +20,23 @@ macro_rules! entity {
             fn entity_metadata_mut(&mut self) -> &mut HashMap<String, Metadata> {
                 &mut self.metadata
             }
-
-            fn entity_doc(&self) -> &[String] {
-                &self.doc
-            }
-
-            fn entity_doc_mut(&mut self) -> &mut Vec<String> {
-                &mut self.doc
-            }
-
-            fn entity_platform(&self) -> Option<&crate::registry::Platform> {
-                self.platform.as_ref()
-            }
         }
 
-        impl PartialEq for $name {
+        impl$(<$lifetime>)? PartialEq for $name$(<$lifetime>)? {
             fn eq(&self, other: &Self) -> bool {
                 self.name == other.name
             }
         }
 
-        impl Eq for $name {}
+        impl$(<$lifetime>)? Eq for $name$(<$lifetime>)? {}
 
-        impl PartialOrd for $name {
+        impl$(<$lifetime>)? PartialOrd for $name$(<$lifetime>)? {
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
                 Some(self.cmp(other))
             }
         }
 
-        impl Ord for $name {
+        impl$(<$lifetime>)? Ord for $name$(<$lifetime>)? {
             fn cmp(&self, other: &Self) -> std::cmp::Ordering {
                 self.name.cmp(&other.name)
             }
@@ -59,63 +44,28 @@ macro_rules! entity {
     };
 }
 
-macro_rules! entity_a {
-    ($name:ident, $($field:ident: $type:ty),* $(,)?) => {
+macro_rules! registry {
+    ($name:ident$(<$generic:ident>)?, $($field:ident: $type:ty),*$(,)?) => {
         #[derive(Debug, Clone, Serialize, Deserialize)]
         #[derive(JsonSchema)]
         #[serde(rename_all = "camelCase")]
-        pub struct $name<'a> {
-            pub name: crate::Identifier,
-            pub metadata: HashMap<String, Metadata>,
-            pub doc: Vec<String>,
-            pub platform: Option<crate::registry::Platform>,
+        #[repr(C)]
+        pub struct $name<'a, $($generic: 'a,)?> {
+            pub name: String,
+            pub imports: BTreeSet<Import>,
+
+            pub aliases: HashMap<Identifier, Typedef<'a>>,
+            pub bitmasks: HashMap<Identifier, Bitmask<'a>>,
+            pub constants: HashMap<Identifier, Constant<'a>>,
+            pub commands: HashMap<Identifier, Command<'a>>,
+            pub enumerations: HashMap<Identifier, Enumeration<'a>>,
+            pub function_typedefs: HashMap<Identifier, FunctionTypedef<'a>>,
+            pub opaque_typedefs: HashMap<Identifier, OpaqueTypedef>,
+            pub opaque_handle_typedefs: HashMap<Identifier, OpaqueHandleTypedef>,
+            pub structs: HashMap<Identifier, Structure<'a>>,
+            pub unions: HashMap<Identifier, Structure<'a>>,
+
             $(pub $field: $type),*
-        }
-
-        impl<'de> Entity<'de> for $name<'_> {
-            fn entity_name(&self) -> &Identifier {
-                &self.name
-            }
-
-            fn entity_metadata(&self) -> &HashMap<String, Metadata> {
-                &self.metadata
-            }
-
-            fn entity_metadata_mut(&mut self) -> &mut HashMap<String, Metadata> {
-                &mut self.metadata
-            }
-
-            fn entity_doc(&self) -> &[String] {
-                &self.doc
-            }
-
-            fn entity_doc_mut(&mut self) -> &mut Vec<String> {
-                &mut self.doc
-            }
-
-            fn entity_platform(&self) -> Option<&crate::registry::Platform> {
-                self.platform.as_ref()
-            }
-        }
-
-        impl PartialEq for $name<'_> {
-            fn eq(&self, other: &Self) -> bool {
-                self.name == other.name
-            }
-        }
-
-        impl Eq for $name<'_> {}
-
-        impl PartialOrd for $name<'_> {
-            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-                Some(self.cmp(other))
-            }
-        }
-
-        impl Ord for $name<'_> {
-            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-                self.name.cmp(&other.name)
-            }
         }
     }
 }
