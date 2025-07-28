@@ -3,7 +3,6 @@ package club.doki7.sennaar.registry
 import club.doki7.sennaar.Identifier
 import club.doki7.sennaar.cpl.CExpr
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -23,6 +22,14 @@ sealed class Entity {
     }
 
     final override fun hashCode(): Int = name.hashCode()
+
+    fun rename(newName: String) {
+        name.rename(newName)
+    }
+
+    fun rename(renamer: (String) -> String) {
+        name.rename(renamer(name.value))
+    }
 }
 
 @Serializable
