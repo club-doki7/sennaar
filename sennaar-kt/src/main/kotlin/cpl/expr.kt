@@ -9,11 +9,15 @@ sealed interface CExpr
 
 @Serializable
 @SerialName("IntLiteral")
-data class CIntLiteralExpr(var value: String, var suffix: String) : CExpr
+data class CIntLiteralExpr(var value: String, var suffix: String) : CExpr {
+    constructor(value: String) : this(value, "")
+}
 
 @Serializable
 @SerialName("FloatLiteral")
-data class CFloatLiteralExpr(var value: String, var suffix: String) : CExpr
+data class CFloatLiteralExpr(var value: String, var suffix: String) : CExpr {
+    constructor(value: String) : this(value, "")
+}
 
 @Serializable
 @SerialName("CharLiteral")

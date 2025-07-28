@@ -985,12 +985,18 @@
           "$ref": "#/$defs/Type"
         },
         "length": {
-          "$ref": "#/$defs/CExpr"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
-        "element",
-        "length"
+        "element"
       ]
     },
     "PointerType": {

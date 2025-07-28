@@ -35,11 +35,29 @@ pub struct CIntLiteralExpr<'a> {
     pub suffix: Cow<'a, str>,
 }
 
+impl<'a> CIntLiteralExpr<'a> {
+    pub fn new(value: Cow<'a, str>) -> Self {
+        Self {
+            value,
+            suffix: Cow::Borrowed(""),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(JsonSchema)]
 pub struct CFloatLiteralExpr<'a> {
     pub value: Cow<'a, str>,
     pub suffix: Cow<'a, str>,
+}
+
+impl<'a> CFloatLiteralExpr<'a> {
+    pub fn new(value: Cow<'a, str>) -> Self {
+        Self {
+            value,
+            suffix: Cow::Borrowed(""),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

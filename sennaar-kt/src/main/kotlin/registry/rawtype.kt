@@ -8,14 +8,16 @@ import kotlinx.serialization.Serializable
 sealed interface Type
 
 @Serializable
-data class IdentifierType(val ident: Identifier) : Type
+data class IdentifierType(var ident: Identifier) : Type {
+    constructor(ident: String) : this(Identifier(ident))
+}
 
 @Serializable
-data class ArrayType(val element: Type, val length: CExpr) : Type
+data class ArrayType(var element: Type, var length: CExpr?) : Type
 
 @Serializable
 data class PointerType(
-    val pointee: Type,
+    var pointee: Type,
     var isConst: Boolean,
     var pointerToOne: Boolean,
     var nullable: Boolean

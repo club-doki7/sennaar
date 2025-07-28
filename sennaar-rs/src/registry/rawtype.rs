@@ -24,7 +24,7 @@ pub struct IdentifierType {
 #[derive(JsonSchema)]
 pub struct ArrayType<'a> {
     pub element: Type<'a>,
-    pub length: CExpr<'a>
+    pub length: Option<CExpr<'a>>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
