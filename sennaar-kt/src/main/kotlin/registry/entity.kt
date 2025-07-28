@@ -77,8 +77,7 @@ data class Param(
     override var name: Identifier,
     var ty: Type,
     var optional: Boolean,
-    var len: CExpr?,
-    var argLen: CExpr?
+    var len: CExpr?
 ) : Entity() {
     fun sanitize() {
         val ptrType = ty as? PointerType
@@ -147,11 +146,10 @@ data class Structure(
 data class Member(
     override var name: Identifier,
     var ty: Type,
-    var bits: Int,
+    var bits: Int?,
     var init: CExpr?,
     var optional: Boolean,
-    var len: CExpr?,
-    var altLen: CExpr?
+    var len: CExpr?
 ) : Entity()
 
 @Serializable
@@ -204,8 +202,8 @@ data class Registry(
         functionTypedefs.values.forEach { it.sanitizeFix() }
     }
 
-    // TODO: unlikely, but how to deal with colliding items?
     fun mergeWith(other: Registry) {
+        // TODO: unlikely, but how to deal with colliding items?
         imports.addAll(other.imports)
         aliases.putAll(other.aliases)
         bitmasks.putAll(other.bitmasks)
