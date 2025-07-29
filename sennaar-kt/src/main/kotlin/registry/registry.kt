@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonNull
 interface IRegistry {
     var name: String
     var imports: MutableSet<Import>
+    var metadefs: MutableMap<String, String>
     var aliases: MutableMap<Identifier, Typedef>
     var bitmasks: MutableMap<Identifier, Bitmask>
     var commands: MutableMap<Identifier, Command>
@@ -49,6 +50,7 @@ interface IRegistry {
 data class Registry(
     override var name: String,
     override var imports: MutableSet<Import>,
+    override var metadefs: MutableMap<String, String>,
     override var aliases: MutableMap<Identifier, Typedef>,
     override var bitmasks: MutableMap<Identifier, Bitmask>,
     override var commands: MutableMap<Identifier, Command>,
@@ -64,6 +66,7 @@ data class Registry(
     constructor(name: String) : this(
         name,
         imports = mutableSetOf(),
+        metadefs = mutableMapOf(),
         aliases = mutableMapOf(),
         bitmasks = mutableMapOf(),
         commands = mutableMapOf(),
@@ -81,6 +84,7 @@ data class Registry(
 data class RegistryTE<EXT>(
     override var name: String,
     override var imports: MutableSet<Import>,
+    override var metadefs: MutableMap<String, String>,
     override var aliases: MutableMap<Identifier, Typedef>,
     override var bitmasks: MutableMap<Identifier, Bitmask>,
     override var commands: MutableMap<Identifier, Command>,
@@ -96,6 +100,7 @@ data class RegistryTE<EXT>(
     constructor(name: String, ext: EXT) : this(
         name,
         imports = mutableSetOf(),
+        metadefs = mutableMapOf(),
         aliases = mutableMapOf(),
         bitmasks = mutableMapOf(),
         commands = mutableMapOf(),

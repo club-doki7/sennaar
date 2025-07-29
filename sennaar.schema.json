@@ -705,6 +705,19 @@
           "required": [
             "$kind"
           ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "$kind": {
+              "type": "string",
+              "const": "Paren"
+            }
+          },
+          "$ref": "#/$defs/CParenExpr",
+          "required": [
+            "$kind"
+          ]
         }
       ]
     },
@@ -976,6 +989,17 @@
         "cond",
         "then",
         "otherwise"
+      ]
+    },
+    "CParenExpr": {
+      "type": "object",
+      "properties": {
+        "expr": {
+          "$ref": "#/$defs/CExpr"
+        }
+      },
+      "required": [
+        "expr"
       ]
     },
     "ArrayType": {
