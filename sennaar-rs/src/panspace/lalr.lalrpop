@@ -1,0 +1,40 @@
+use crate::cpl::*;
+
+grammar;
+
+PrimaryExpression: CExpr<'input> = {
+    <ident:"ident"> => CExpr::Identifier(Box::new(CIdentifierExpr { ident })),
+    <value:"int-literal"> => CExpr::IntLiteral(Box::new(CIntLiteralExpr { value })),
+    <value:"float-literal"> => CExpr::FloatLiteral(Box::new(CFloatLiteralExpr { value })),
+    <value:"char-literal"> => CExpr::CharLiteral(Box::new(CCharLiteralExpr { value })),
+    <value:"string-literal"> => CExpr::StringLiteral(Box::new(CStringLiteralExpr { value })),
+    "(" <expr:Expression> ")" => CExpr::Paren(Box::new(CParenExpr { expr })),
+}
+
+PostfixExpression: CExpr<'input> = {
+    PrimaryExpression
+    <base:PostfixExpression> "[" <index:Expression> "]" => CExpr::Index(Box::new(CIndexExpr { base, index })),
+    <callee:PostfixExpression> "(" <args:ArgumentExpressionListOpt> ")" => CExpr::Call(Box::new(CCallExpr { callee, args })),
+    <obj:PostfixExpression> "." <member:"ident"> => CExpr::Member(Box::new(CMemberExpr { obj, member })),
+    <obj:PostfixExpression> "->" <member:"ident"> => CExpr::PtrMember(Box::new(CPtrMemberExpr { obj, member })),
+    <expr:PostfixExpression> "++" => CExpr::PostfixIncDec(Box::new(CPostfixIncDecExpr { expr, op: CPostfixIncDecOp::Inc })),
+    <expr:PostfixExpression> "--" => CExpr::PostfixIncDec(Box::new(CPostfixIncDecExpr { expr, op: CPostfixIncDecOp::Dec })),
+}
+
+ArgumentExpressionListOpt: Vec<CExpr<'input>> = {
+    <some:ArgumentExpressionList> => some,
+    => vec![],
+}
+
+ArgumentExpressionList: Vec<CExpr<'input>> = {
+    <arg:Expression> => vec![arg],
+    <args:ArgumentExpressionList> "," <arg:Expression> => {
+        let mut args = args;
+        args.push(arg);
+        args
+    },
+}
+
+pub Expression: CExpr<'input> = {
+    PostfixExpression
+}

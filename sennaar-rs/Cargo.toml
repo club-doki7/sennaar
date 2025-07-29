@@ -3,10 +3,15 @@ name = "sennaar"
 version = "0.1.0"
 edition = "2024"
 
+[build-dependencies]
+lalrpop = "0.22.2"
+
 [dependencies]
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
+lalrpop-util = { version = "0.21.0", features = ["lexer", "unicode"] }
+
 
 [[bin]]
 name = "generate_schema"

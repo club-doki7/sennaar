@@ -91,3 +91,7 @@ data class CBinaryExpr(var op: CBinaryOp, var lhs: CExpr, var rhs: CExpr) : CExp
 @Serializable
 @SerialName("Conditional")
 data class CConditionalExpr(var cond: CExpr, var then: CExpr, var otherwise: CExpr) : CExpr
+
+@Serializable
+@SerialName("Paren")
+data class CParenExpr(var expr: CExpr) : CExpr

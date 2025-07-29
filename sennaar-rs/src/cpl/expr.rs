@@ -26,6 +26,7 @@ pub enum CExpr<'a> {
     Cast(Box<CCastExpr<'a>>),
     Binary(Box<CBinaryExpr<'a>>),
     Conditional(Box<CConditionalExpr<'a>>),
+    Paren(Box<CParenExpr<'a>>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,4 +166,10 @@ pub struct CConditionalExpr<'a> {
     pub cond: CExpr<'a>,
     pub then: CExpr<'a>,
     pub otherwise: CExpr<'a>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(JsonSchema)]
+pub struct CParenExpr<'a> {
+    pub expr: CExpr<'a>,
 }
