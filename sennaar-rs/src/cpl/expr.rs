@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt::Display};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -172,4 +172,78 @@ pub struct CConditionalExpr<'a> {
 #[derive(JsonSchema)]
 pub struct CParenExpr<'a> {
     pub expr: CExpr<'a>,
+}
+
+impl <'a> Display for CExpr<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            CExpr::IntLiteral(i) => write!(f, "{}{}", i.value, i.suffix),
+            CExpr::FloatLiteral(d) => write!(f, "{}{}", d.value, d.suffix),
+            CExpr::CharLiteral(c) => write!(f, "'{}'", c.value),
+            CExpr::StringLiteral(s) => write!(f, "\"{}\"", s.value),
+            CExpr::Identifier(i) => write!(f, "{}", i.ident),
+            CExpr::Index(arr_sub) => write!(f, "{}[{}]", arr_sub.base, arr_sub.index),
+            CExpr::Call(call) => {
+                write!(f, "{}(", call.callee)?;
+
+                for i in 0..call.args.len() {
+                    write!(f, "{}", call.args[i])?;
+                    if i != call.args.len() - 1 {
+                        write!(f, ",")?;
+                    }
+                }
+
+                write!(f, ")")?;
+
+                Ok(())
+            },
+            CExpr::Member(mem) => write!(f, "{}.{}", mem.obj, mem.member),
+            CExpr::PtrMember(mem) => write!(f, "(*{}).{}", mem.obj, mem.member),
+            CExpr::PostfixIncDec(cpostfix_inc_dec_expr) => todo!(),
+            CExpr::Unary(cunary_expr) => todo!(),
+            CExpr::Cast(ccast_expr) => todo!(),
+            CExpr::Binary(b) => write!(f, "{} {} {}", b.lhs, bin_op_describe(b.op), b.rhs),
+            CExpr::Conditional(cconditional_expr) => todo!(),
+            CExpr::Paren(p) => write!(f, "({})", p.expr),
+        }
+    }
+}
+
+fn bin_op_describe(op: CBinaryOp) -> &'static str {
+    match op {
+        CBinaryOp::Mul => "*",
+        CBinaryOp::Div => "/",
+        CBinaryOp::Mod => "%",
+        CBinaryOp::Add => "+",
+        CBinaryOp::Sub => "-",
+        CBinaryOp::Shl => "<<",
+        CBinaryOp::Shr => ">>",
+        CBinaryOp::Less => "<",
+        CBinaryOp::Greater => ">",
+        CBinaryOp::LessEq => "<=",
+        CBinaryOp::GreaterEq => ">=",
+        CBinaryOp::Eq => "==",
+        CBinaryOp::NotEq => "!=",
+        CBinaryOp::BitAnd => "&",
+        CBinaryOp::BitXor => "^",
+        CBinaryOp::BitOr => "|",
+        CBinaryOp::And => "&&",
+        CBinaryOp::Or => "||",
+        CBinaryOp::Xor => "^",
+        CBinaryOp::Assign => "=",
+        CBinaryOp::MulAssign => "*=",
+        CBinaryOp::DivAssign => "/=",
+        CBinaryOp::ModAssign => "%=",
+        CBinaryOp::AddAssign => "+=",
+        CBinaryOp::SubAssign => "-=",
+        CBinaryOp::ShlAssign => "<<=",
+        CBinaryOp::ShrAssign => ">>=",
+        CBinaryOp::BitAndAssign => "&=",
+        CBinaryOp::BitXorAssign => "^=",
+        CBinaryOp::BitOrAssign => "|=",
+        CBinaryOp::AndAssign => "&&=",      // ???
+        CBinaryOp::OrAssign => "||=",
+        CBinaryOp::XorAssign => "^=",
+        CBinaryOp::Comma => ",",
+    }
 }
