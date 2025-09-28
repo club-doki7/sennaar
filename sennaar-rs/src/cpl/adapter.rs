@@ -1,7 +1,9 @@
-use clang_sys::*;
-use std::{borrow::Cow, ffi::{c_void, CStr, CString}};
+#![allow(non_upper_case_globals)]
 
-use crate::{cpl::{CBinaryExpr, CBinaryOp}, Identifier, Internalize};
+use clang_sys::*;
+use std::{borrow::Cow, ffi::{c_void, CStr}};
+
+use crate::{cpl::{CBinaryExpr, CBinaryOp, CConditionalExpr, CParenExpr, CPostfixIncDecExpr, CPostfixIncDecOp, CUnaryExpr, CUnaryOp}, Identifier, Internalize};
 use crate::cpl::{CCallExpr, CCharLiteralExpr, CExpr, CIdentifierExpr, CIndexExpr, CIntLiteralExpr, CMemberExpr};
 
 // TODO: improve error reporting
@@ -21,17 +23,20 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, String> {
         if result_kind != CXEval_Int { return Err("Unable to evaluate an integer literal to integer.".to_string()) }
         
         let str = if clang_EvalResult_isUnsignedInt(result) != 0 {
-          clang_EvalResult_getAsUnsigned(result).to_string()
+          let u = clang_EvalResult_getAsUnsigned(result);
+          format!("{:#X}", u)
         } else {
-          clang_EvalResult_getAsLongLong(result).to_string()
+          let i = clang_EvalResult_getAsLongLong(result);
+          format!("{:#X}", i)
         };
 
+        let suffix = get_suffix(cursor);
+
         clang_EvalResult_dispose(result);
-        
 
         CExpr::IntLiteral(Box::new(CIntLiteralExpr {
           value: Cow::Owned(str),
-          suffix: Cow::Borrowed("")
+          suffix: Cow::Borrowed(suffix)
         }))
       }
       CXCursor_CharacterLiteral => {
@@ -39,18 +44,18 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, String> {
         if result.is_null() { return Err("Unable to evaluate a character literal.".to_string()); }
         let result_kind = clang_EvalResult_getKind(result);
 
-        if result_kind != CXEval_StrLiteral { return Err("Unable to evaluate a character literal to string.".to_string()); }
+        if result_kind != CXEval_Int { return Err("Unable to evaluate a character literal to integer.".to_string()); }
 
-        let raw_cs = clang_EvalResult_getAsStr(result);
-        if raw_cs.is_null() { return Err("Failed to get string.".to_string()); }
+        let codepoint = clang_EvalResult_getAsUnsigned(result);
+        let c = char::from_u32(codepoint as u32).ok_or("Unable to convert i32 to char.".to_string())?;
 
-        let cs = CStr::from_ptr(raw_cs).to_owned();
-        let s = cs.into_string().map_err(|_| "Failed to convert string")?;
+        // let cs = CStr::from_ptr(raw_cs).to_owned();
+        // let s = cs.into_string().map_err(|_| "Failed to convert string")?;
 
         clang_EvalResult_dispose(result);
 
         CExpr::CharLiteral(Box::new(CCharLiteralExpr {
-          value: Cow::Owned(s)
+          value: Cow::Owned(c.escape_default().to_string())
         }))
       }
       CXCursor_DeclRefExpr => {
@@ -99,6 +104,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, String> {
           }))
         }
       }
+      // https://clang.llvm.org/doxygen/group__CINDEX__HIGH.html
       CXCursor_BinaryOperator => {
         let kind = clang_getCursorBinaryOperatorKind(cursor);
         let op_code = match kind {
@@ -122,7 +128,18 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, String> {
           CXBinaryOperator_LAnd => CBinaryOp::And,
           CXBinaryOperator_LOr => CBinaryOp::Or,
           CXBinaryOperator_Assign => CBinaryOp::Assign,
-          _ => todo!()
+          CXBinaryOperator_MulAssign => CBinaryOp::MulAssign,
+          CXBinaryOperator_DivAssign => CBinaryOp::DivAssign,
+          CXBinaryOperator_RemAssign => CBinaryOp::ModAssign,
+          CXBinaryOperator_AddAssign => CBinaryOp::AddAssign,
+          CXBinaryOperator_SubAssign => CBinaryOp::SubAssign,
+          CXBinaryOperator_ShlAssign => CBinaryOp::ShlAssign,
+          CXBinaryOperator_ShrAssign => CBinaryOp::ShrAssign,
+          CXBinaryOperator_AndAssign => CBinaryOp::AndAssign,
+          CXBinaryOperator_XorAssign => CBinaryOp::XorAssign,
+          CXBinaryOperator_OrAssign => CBinaryOp::OrAssign,
+          CXBinaryOperator_Comma => CBinaryOp::Comma,
+          _ => unreachable!()
         };
 
         let children = get_children(cursor);
@@ -138,6 +155,54 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, String> {
           lhs, rhs
         }))
       }
+      CXCursor_UnaryOperator => {
+        let kind = clang_getCursorUnaryOperatorKind(cursor);
+        let op_code = match kind {
+          CXUnaryOperator_PostInc => either::Left(CPostfixIncDecOp::Inc),
+          CXUnaryOperator_PostDec => either::Left(CPostfixIncDecOp::Dec),
+          CXUnaryOperator_PreInc => either::Right(CUnaryOp::Inc),
+          CXUnaryOperator_PreDec => either::Right(CUnaryOp::Dec),
+          CXUnaryOperator_AddrOf=> either::Right(CUnaryOp::AddrOf),
+          CXUnaryOperator_Deref => either::Right(CUnaryOp::Deref),
+          CXUnaryOperator_Plus => either::Right(CUnaryOp::Plus),
+          CXUnaryOperator_Minus => either::Right(CUnaryOp::Minus),
+          CXUnaryOperator_Not => either::Right(CUnaryOp::BitNot),
+          CXUnaryOperator_LNot => either::Right(CUnaryOp::Not),
+          // TODO: there are unhandled operators, but we doesn't expect them.
+          _ => unreachable!()
+        };
+
+        let children = get_children(cursor);
+        if children.len() != 1 { return Err("Size doesn't match(UnaryOperator)".to_string()) }
+        let child = map_nodes(children[0])?;
+
+        op_code.either_with(child, |child, op| CExpr::PostfixIncDec(Box::new(CPostfixIncDecExpr {
+          expr: child, op
+        })), |child, op| CExpr::Unary(Box::new(CUnaryExpr {
+          expr: child, op
+        })))
+      }
+      CXCursor_ConditionalOperator => {
+        let children = get_children(cursor);
+        if children.len() != 3 { return Err("Size doesn't match(ConditionalOperator)".to_string()); }
+
+        let cond = map_nodes(children[0])?;
+        let then = map_nodes(children[1])?;
+        let otherwise = map_nodes(children[2])?;
+
+        CExpr::Conditional(Box::new(CConditionalExpr {
+          cond, then, otherwise
+        }))
+      }
+      CXCursor_ParenExpr => {
+        let children = get_children(cursor);
+        if children.len() != 1 { return Err("Size doesn't match(ParenExpr)".to_string()) }
+        let expr = map_nodes(children[0])?;
+
+        CExpr::Paren(Box::new(CParenExpr { expr }))
+      }
+      // We don't know that it is, so let's hope it has only one child.
+      // This is typically a implicit cast.
       CXCursor_UnexposedExpr => {
         let children = get_children(cursor);
         if children.len() != 1 {
@@ -172,7 +237,7 @@ unsafe fn get_identifier(cursor: CXCursor) -> Result<Identifier, String> {
   unsafe {
     let display = clang_getCursorDisplayName(cursor);
     let raw_cs = clang_getCString(display);
-    let cs = CStr::from_ptr(raw_cs).to_owned().into_string().map_err(|_| "Failed to convert string")?;
+    let cs = CStr::from_ptr(raw_cs).to_str().map_err(|_| "Failed to convert string")?;
 
     Ok(cs.interned())
   }
@@ -194,4 +259,22 @@ fn get_children(cursor: CXCursor) -> Vec<CXCursor> {
   }
 
   buffer
+}
+
+unsafe fn get_suffix(cursor: CXCursor) -> &'static str {
+  unsafe {
+    let ty = clang_getCursorType(cursor);
+    match ty.kind {
+      CXType_Int => "",
+      CXType_UInt => "U",
+      CXType_ULong => "UL",
+      CXType_ULongLong => "ULL",
+      CXType_Long => "L",
+      CXType_LongLong => "LL",
+      CXType_Float => "F",
+      CXType_Double => "",
+      CXType_LongDouble => "L",
+      _ => unreachable!()
+    }
+  }
 }

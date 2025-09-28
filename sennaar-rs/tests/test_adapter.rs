@@ -19,7 +19,7 @@ fn adapt_expr() {
   }
 }
 
-extern "C" fn visitor(e: CXCursor, p: CXCursor, data: *mut c_void) -> CXChildVisitResult {
+extern "C" fn visitor(e: CXCursor, _p: CXCursor, _data: *mut c_void) -> CXChildVisitResult {
   unsafe {
     let cursor_kind = clang_getCursorKind(e);
     if clang_isExpression(cursor_kind) != 0 {
@@ -33,8 +33,6 @@ extern "C" fn visitor(e: CXCursor, p: CXCursor, data: *mut c_void) -> CXChildVis
           let raw_cs = clang_getCString(cxcs);
           let kind_display = CStr::from_ptr(raw_cs).to_owned().into_string().unwrap();
           clang_disposeString(cxcs);
-          drop(cxcs);
-          drop(raw_cs);
 
           let range = clang_getCursorExtent(e);
           let loc_start = clang_getRangeStart(range);

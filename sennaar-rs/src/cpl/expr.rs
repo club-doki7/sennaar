@@ -199,11 +199,15 @@ impl <'a> Display for CExpr<'a> {
             },
             CExpr::Member(mem) => write!(f, "{}.{}", mem.obj, mem.member),
             CExpr::PtrMember(mem) => write!(f, "(*{}).{}", mem.obj, mem.member),
-            CExpr::PostfixIncDec(cpostfix_inc_dec_expr) => todo!(),
-            CExpr::Unary(cunary_expr) => todo!(),
-            CExpr::Cast(ccast_expr) => todo!(),
+            CExpr::PostfixIncDec(e) => write!(f, "{}{}", e.expr, post_op_describe(e.op)),
+            CExpr::Unary(e) => match e.op {
+                CUnaryOp::AddrOf => write!(f, "sizeof({})", e.expr),
+                CUnaryOp::AlignOf => write!(f, "??({})", e.expr),
+                _ => write!(f, "{}{}", pre_op_describe(e.op), e.expr),
+            },
+            CExpr::Cast(_c) => todo!(),
             CExpr::Binary(b) => write!(f, "{} {} {}", b.lhs, bin_op_describe(b.op), b.rhs),
-            CExpr::Conditional(cconditional_expr) => todo!(),
+            CExpr::Conditional(c) => write!(f, "{} ? {} : {}", c.cond, c.then, c.otherwise),
             CExpr::Paren(p) => write!(f, "({})", p.expr),
         }
     }
@@ -245,5 +249,26 @@ fn bin_op_describe(op: CBinaryOp) -> &'static str {
         CBinaryOp::OrAssign => "||=",
         CBinaryOp::XorAssign => "^=",
         CBinaryOp::Comma => ",",
+    }
+}
+
+fn pre_op_describe(op: CUnaryOp) -> &'static str {
+    match op {
+        CUnaryOp::Plus => "+",
+        CUnaryOp::Minus => "-",
+        CUnaryOp::Not => "!",
+        CUnaryOp::BitNot => "~",
+        CUnaryOp::Deref => "*",
+        CUnaryOp::AddrOf => "&",
+        CUnaryOp::Inc => "++",
+        CUnaryOp::Dec => "--",
+        CUnaryOp::SizeOf | CUnaryOp::AlignOf => unreachable!(),
+    }
+}
+
+fn post_op_describe(op: CPostfixIncDecOp) -> &'static str {
+    match op {
+        CPostfixIncDecOp::Inc => "++",
+        CPostfixIncDecOp::Dec => "--",
     }
 }
