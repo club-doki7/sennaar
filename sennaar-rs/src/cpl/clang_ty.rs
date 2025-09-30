@@ -8,15 +8,28 @@ use crate::{Identifier, Internalize};
 use crate::cpl::clang_utils::*;
 
 #[derive(Debug)]
+pub enum CSign {
+  Signed, ExplicitSigned, Unsigned
+}
+
+#[derive(Debug)]
 pub enum CType {
-  Identifier { signed: bool, ident: Identifier },
+  Identifier { signed: CSign, ident: Identifier },
   Array(Box<CType>, u64),
   Pointer(Box<CType>),
   FunProto(Box<CType>, Vec<CType>),
 }
 
 impl CType {
-  fn fmt_fun(f: &mut std::fmt::Formatter<'_>, ret: &Box<CType>, params: &Vec<CType>, name: Option<Identifier>) -> std::fmt::Result {
+  pub fn signed(ident: Identifier) -> CType {
+    CType::Identifier { signed: CSign::Signed, ident }
+  }
+
+  pub fn unsigned(ident: Identifier) -> CType {
+    CType::Identifier { signed: CSign::Unsigned, ident }
+  }
+
+  pub fn fmt_fun(f: &mut std::fmt::Formatter<'_>, ret: &Box<CType>, params: &Vec<CType>, name: Option<Identifier>) -> std::fmt::Result {
     write!(f, "{} ", ret)?;
     if let Some(name) = name {
       write!(f, "(*{})", name)?;
@@ -37,10 +50,10 @@ impl CType {
 impl Display for CType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            CType::Identifier { signed, ident } => if *signed {
-              write!(f, "{}", ident)
-            } else {
-              write!(f, "unsigned {}", ident)
+            CType::Identifier { signed, ident } => match *signed {
+                CSign::Signed => write!(f, "{}", ident),
+                CSign::ExplicitSigned => write!(f, "signed {}", ident),
+                CSign::Unsigned => write!(f, "unsigned {}", ident),
             },
             CType::Array(ctype, size) => write!(f, "{}[{}]", ctype, size),
             CType::Pointer(ctype) => match &*(*ctype) {
@@ -112,6 +125,7 @@ fn try_map_primitive(ty: CXType) -> Option<CType> {
   let ident = match ty.kind {
     CXType_Void => "void",
     CXType_Bool => "bool",    // ??
+    CXType_UChar | CXType_Char_S | CXType_SChar => "char",
     CXType_UShort | CXType_Short => "short",
     CXType_UInt | CXType_Int => "int",
     CXType_ULong | CXType_Long => "long",
@@ -127,9 +141,11 @@ fn try_map_primitive(ty: CXType) -> Option<CType> {
   Some(CType::Identifier { signed: sign, ident: ident.interned() })
 }
 
-fn map_primitive_sign(ty: CXType) -> bool {
+/// If the sign is determined by the type (such as uint128), the implementation should return `CSign::Signed`
+fn map_primitive_sign(ty: CXType) -> CSign {
   match ty.kind {
-    CXType_UShort | CXType_UInt | CXType_ULong | CXType_ULongLong => false,
-    _ => true
+    CXType_UChar | CXType_UShort | CXType_UInt | CXType_ULong | CXType_ULongLong => CSign::Unsigned,
+    CXType_SChar => CSign::ExplicitSigned,
+    _ => CSign::Signed
   }
 }

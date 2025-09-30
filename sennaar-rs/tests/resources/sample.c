@@ -23,6 +23,9 @@ int callback(int (*f)(unsigned int, int), int arr[10]) {
   return 0;
 }
 
+void char_hell(unsigned char uchar, char char_s, signed char schar) {
+}
+
 int noproto() {
   return 0;
 }
