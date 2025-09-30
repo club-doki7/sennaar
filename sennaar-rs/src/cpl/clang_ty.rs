@@ -1,0 +1,135 @@
+#![allow(non_upper_case_globals)]
+
+use std::fmt::Display;
+
+use clang_sys::*;
+
+use crate::{Identifier, Internalize};
+use crate::cpl::clang_utils::{from_CXString, get_parameters};
+
+#[derive(Debug)]
+pub enum CType {
+  Identifier { signed: bool, ident: Identifier },
+  Array(Box<CType>, u64),
+  Pointer(Box<CType>),
+  FunProto(Box<CType>, Vec<CType>),
+}
+
+impl CType {
+  fn fmt_fun(f: &mut std::fmt::Formatter<'_>, ret: &Box<CType>, params: &Vec<CType>, name: Option<Identifier>) -> std::fmt::Result {
+    write!(f, "{} ", ret)?;
+    if let Some(name) = name {
+      write!(f, "(*{})", name)?;
+    }
+
+    write!(f, "(")?;
+
+    let params_str = params.iter().map(|p| format!("{}", p)).collect::<Vec<String>>();
+    let param_comma_seq = params_str.join(", ");
+    write!(f, "{}", param_comma_seq)?;
+
+    write!(f, ")")?;
+
+    Ok(())
+  }
+}
+
+impl Display for CType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            CType::Identifier { signed, ident } => if *signed {
+              write!(f, "{}", ident)
+            } else {
+              write!(f, "unsigned {}", ident)
+            },
+            CType::Array(ctype, size) => write!(f, "{}[{}]", ctype, size),
+            CType::Pointer(ctype) => match &*(*ctype) {
+                CType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, Some("".interned())),
+                _ => write!(f, "{}*", ctype)
+            },
+            CType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, None),
+        }
+    }
+}
+
+pub unsafe fn map_ty(ty: CXType) -> Result<CType, String> {
+  unsafe {
+    if let Some(prime) = try_map_primitive(ty) {
+      return Ok(prime)
+    }
+
+    let cty = match ty.kind {
+      CXType_Pointer => {
+        let pointee = clang_getPointeeType(ty);
+        let mapped = map_ty(pointee)?;
+        CType::Pointer(Box::new(mapped))
+      }
+
+      // function with parameters
+      CXType_FunctionProto => {
+        let result = clang_getResultType(ty);
+        let params = get_parameters(ty);
+
+        let mapped_result = map_ty(result)?;
+        let mapped_params = params.into_iter().map(|p| map_ty(p))
+          .collect::<Result<Vec<CType>, String>>()?;
+
+        CType::FunProto(Box::new(mapped_result), mapped_params)
+      }
+
+      // function with no parameters
+      CXType_FunctionNoProto => {
+        let result = clang_getResultType(ty);
+        let mapped_result = map_ty(result)?;
+
+        CType::FunProto(Box::new(mapped_result), Vec::new())
+      }
+
+      CXType_ConstantArray => {
+        let element_ty = clang_getArrayElementType(ty);
+        let size = clang_getArraySize(ty);
+        if size == -1 { unreachable!() }
+
+        let mapped_element_ty = map_ty(element_ty)?;
+
+        CType::Array(Box::new(mapped_element_ty), size as u64)
+      }
+    
+      _ => {
+        let raw_type_display = clang_getTypeSpelling(ty);
+        let raw_kind_display = clang_getTypeKindSpelling(ty.kind);
+        let type_display = from_CXString(raw_type_display)?;
+        let kind_display = from_CXString(raw_kind_display)?;
+        todo!("Unhandled type '{}' with kind '{}'", type_display, kind_display);
+      }
+    };
+    
+    Ok(cty)
+  }
+}
+
+fn try_map_primitive(ty: CXType) -> Option<CType> {
+  let ident = match ty.kind {
+    CXType_Void => "void",
+    CXType_Bool => "bool",    // ??
+    CXType_UShort | CXType_Short => "short",
+    CXType_UInt | CXType_Int => "int",
+    CXType_ULong | CXType_Long => "long",
+    CXType_ULongLong | CXType_LongLong => "long long",
+    CXType_Float => "float",
+    CXType_Double => "double",
+    CXType_LongDouble => "long double",
+    _ => return None
+  };
+
+  let sign = map_primitive_sign(ty);
+
+  Some(CType::Identifier { signed: sign, ident: ident.interned() })
+}
+
+fn map_primitive_sign(ty: CXType) -> bool {
+  match ty.kind {
+    CXType_UShort | CXType_UInt | CXType_ULong | CXType_ULongLong => false,
+    _ => true
+  }
+}

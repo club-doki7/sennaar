@@ -1,10 +1,12 @@
 #![allow(non_upper_case_globals)]
 
 use clang_sys::*;
-use std::{borrow::Cow, ffi::{c_void, CStr}};
+use std::{borrow::Cow};
 
-use crate::{cpl::{CBinaryExpr, CBinaryOp, CConditionalExpr, CParenExpr, CPostfixIncDecExpr, CPostfixIncDecOp, CUnaryExpr, CUnaryOp}, Identifier, Internalize};
-use crate::cpl::{CCallExpr, CCharLiteralExpr, CExpr, CIdentifierExpr, CIndexExpr, CIntLiteralExpr, CMemberExpr};
+use crate::cpl::clang_ty::map_ty;
+use crate::{Identifier, Internalize};
+use crate::cpl::expr::*;
+use crate::cpl::clang_utils::{from_CXString, get_children, get_children_N};
 
 // TODO: improve error reporting
 // TODO: improve life time
@@ -104,6 +106,62 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, String> {
           }))
         }
       }
+      CXCursor_UnaryOperator => {
+        let kind = clang_getCursorUnaryOperatorKind(cursor);
+        let op_code = match kind {
+          CXUnaryOperator_PostInc => either::Left(CPostfixIncDecOp::Inc),
+          CXUnaryOperator_PostDec => either::Left(CPostfixIncDecOp::Dec),
+          CXUnaryOperator_PreInc => either::Right(CUnaryOp::Inc),
+          CXUnaryOperator_PreDec => either::Right(CUnaryOp::Dec),
+          CXUnaryOperator_AddrOf=> either::Right(CUnaryOp::AddrOf),
+          CXUnaryOperator_Deref => either::Right(CUnaryOp::Deref),
+          CXUnaryOperator_Plus => either::Right(CUnaryOp::Plus),
+          CXUnaryOperator_Minus => either::Right(CUnaryOp::Minus),
+          CXUnaryOperator_Not => either::Right(CUnaryOp::BitNot),
+          CXUnaryOperator_LNot => either::Right(CUnaryOp::Not),
+          // TODO: there are unhandled operators, but we doesn't expect them.
+          _ => unreachable!()
+        };
+
+        let children = get_children(cursor);
+        if children.len() != 1 { return Err("Size doesn't match(UnaryOperator)".to_string()) }
+        let child = map_nodes(children[0])?;
+
+        op_code.either_with(child, |child, op| CExpr::PostfixIncDec(Box::new(CPostfixIncDecExpr {
+          expr: child, op
+        })), |child, op| CExpr::Unary(Box::new(CUnaryExpr {
+          expr: child, op
+        })))
+      }
+      // what?
+      CXCursor_UnaryExpr => {
+        let children = get_children(cursor);
+        let ty = clang_getCursorType(cursor);
+        let argc = clang_Cursor_getNumArguments(cursor);
+        println!("Children count: {}", children.len());
+        println!("argc: {}", argc);
+        let result = clang_Cursor_Evaluate(cursor);
+        let result_kind = clang_EvalResult_getKind(result);
+        println!("result kind: {}", result_kind);
+        println!("result value: {}", clang_EvalResult_getAsInt(result));
+        clang_EvalResult_dispose(result);
+
+        
+        todo!()
+      }
+      CXCursor_CStyleCastExpr => {
+        let [ casted ] = get_children_N::<1>(cursor)?;
+        let ty = clang_getCursorType(cursor);
+        let cty = map_ty(ty)?;
+
+        let mapped = map_nodes(casted)?;
+
+        CExpr::Cast(Box::new(CCastExpr {
+          expr: mapped,
+          ty: CExpr::identifier(format!("{}", cty).interned()),
+        }))
+      }
+      
       // https://clang.llvm.org/doxygen/group__CINDEX__HIGH.html
       CXCursor_BinaryOperator => {
         let kind = clang_getCursorBinaryOperatorKind(cursor);
@@ -155,33 +213,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, String> {
           lhs, rhs
         }))
       }
-      CXCursor_UnaryOperator => {
-        let kind = clang_getCursorUnaryOperatorKind(cursor);
-        let op_code = match kind {
-          CXUnaryOperator_PostInc => either::Left(CPostfixIncDecOp::Inc),
-          CXUnaryOperator_PostDec => either::Left(CPostfixIncDecOp::Dec),
-          CXUnaryOperator_PreInc => either::Right(CUnaryOp::Inc),
-          CXUnaryOperator_PreDec => either::Right(CUnaryOp::Dec),
-          CXUnaryOperator_AddrOf=> either::Right(CUnaryOp::AddrOf),
-          CXUnaryOperator_Deref => either::Right(CUnaryOp::Deref),
-          CXUnaryOperator_Plus => either::Right(CUnaryOp::Plus),
-          CXUnaryOperator_Minus => either::Right(CUnaryOp::Minus),
-          CXUnaryOperator_Not => either::Right(CUnaryOp::BitNot),
-          CXUnaryOperator_LNot => either::Right(CUnaryOp::Not),
-          // TODO: there are unhandled operators, but we doesn't expect them.
-          _ => unreachable!()
-        };
 
-        let children = get_children(cursor);
-        if children.len() != 1 { return Err("Size doesn't match(UnaryOperator)".to_string()) }
-        let child = map_nodes(children[0])?;
-
-        op_code.either_with(child, |child, op| CExpr::PostfixIncDec(Box::new(CPostfixIncDecExpr {
-          expr: child, op
-        })), |child, op| CExpr::Unary(Box::new(CUnaryExpr {
-          expr: child, op
-        })))
-      }
       CXCursor_ConditionalOperator => {
         let children = get_children(cursor);
         if children.len() != 3 { return Err("Size doesn't match(ConditionalOperator)".to_string()); }
@@ -236,29 +268,9 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, String> {
 unsafe fn get_identifier(cursor: CXCursor) -> Result<Identifier, String> {
   unsafe {
     let display = clang_getCursorDisplayName(cursor);
-    let raw_cs = clang_getCString(display);
-    let cs = CStr::from_ptr(raw_cs).to_str().map_err(|_| "Failed to convert string")?;
-
-    Ok(cs.interned())
+    let s = from_CXString(display)?;
+    Ok(s.interned())
   }
-}
-
-fn get_children(cursor: CXCursor) -> Vec<CXCursor> {
-  let mut buffer = Vec::<CXCursor>::new();
-
-  extern "C" fn visit(cursor: CXCursor, _: CXCursor, data: CXClientData) -> CXChildVisitResult {
-    unsafe {
-      let buffer = &mut *(data as *mut Vec<CXCursor>);
-      buffer.push(cursor);
-      CXChildVisit_Continue
-    }
-  }
-
-  unsafe {
-    clang_visitChildren(cursor, visit, (&mut buffer as *mut Vec<CXCursor>) as *mut c_void);
-  }
-
-  buffer
 }
 
 unsafe fn get_suffix(cursor: CXCursor) -> &'static str {

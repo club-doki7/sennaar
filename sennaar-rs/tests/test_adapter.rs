@@ -1,6 +1,6 @@
 use std::{ffi::{c_void, CStr}, ptr::{null, null_mut}};
 
-use sennaar::cpl::adapter;
+use sennaar::cpl::{clang_expr, clang_ty::map_ty};
 use clang_sys::*;
 
 #[test]
@@ -23,42 +23,49 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, _data: *mut c_void) -> CXChildV
   unsafe {
     let cursor_kind = clang_getCursorKind(e);
     if clang_isExpression(cursor_kind) != 0 {
-      let mapped = adapter::map_nodes(e);
-      match mapped {
-        Ok(ce) => {
-          println!("{}", ce);
-        }
-        Err(err) => {
-          let cxcs = clang_getCursorKindSpelling(cursor_kind);
-          let raw_cs = clang_getCString(cxcs);
-          let kind_display = CStr::from_ptr(raw_cs).to_owned().into_string().unwrap();
-          clang_disposeString(cxcs);
+      let mapped = clang_expr::map_nodes(e)
+        .unwrap_or_else(|err| error(err, e));
+      
+      println!("Expr: {}", mapped);
+    } else if cursor_kind == CXCursor_ParmDecl {
+      let ty = clang_getCursorType(e);
+      let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
 
-          let range = clang_getCursorExtent(e);
-          let loc_start = clang_getRangeStart(range);
-          let loc_end = clang_getRangeEnd(range);
-          let mut file: CXFile = null_mut();
-          let mut start_line: u32 = 0;
-          let mut start_column: u32 = 0;
-          let mut start_offset: u32 = 0;
-          let mut end_line: u32 = 0;
-          let mut end_column: u32 = 0;
-          let mut end_offset: u32 = 0;
-          clang_getExpansionLocation(loc_start, &mut file, &mut start_line, &mut start_column, &mut start_offset);
-          clang_getExpansionLocation(loc_end, &mut file, &mut end_line, &mut end_column, &mut end_offset);
-          
-          panic!("Failed to map nodes of cursor[{}({})]: {}({}, {})-{}({}, {}) with {}", 
-            kind_display, cursor_kind, 
-            start_offset, start_line, start_column,
-            end_offset, end_line, end_column,
-            err
-          );
-        }
-      };
+      println!("Type: {}", cty);
     } else {
       clang_visitChildren(e, visitor, null_mut());
     }
 
     CXChildVisit_Continue
+  }
+}
+
+unsafe fn error(err: String, e: CXCursor) -> ! { 
+  unsafe {
+    let cursor_kind = clang_getCursorKind(e);
+    let cxcs = clang_getCursorKindSpelling(cursor_kind);
+    let raw_cs = clang_getCString(cxcs);
+    let kind_display = CStr::from_ptr(raw_cs).to_owned().into_string().unwrap();
+    clang_disposeString(cxcs);
+    
+    let range = clang_getCursorExtent(e);
+    let loc_start = clang_getRangeStart(range);
+    let loc_end = clang_getRangeEnd(range);
+    let mut file: CXFile = null_mut();
+    let mut start_line: u32 = 0;
+    let mut start_column: u32 = 0;
+    let mut start_offset: u32 = 0;
+    let mut end_line: u32 = 0;
+    let mut end_column: u32 = 0;
+    let mut end_offset: u32 = 0;
+    clang_getExpansionLocation(loc_start, &mut file, &mut start_line, &mut start_column, &mut start_offset);
+    clang_getExpansionLocation(loc_end, &mut file, &mut end_line, &mut end_column, &mut end_offset);
+    
+    panic!("Failed to map nodes of cursor[{}({})]: {}({}, {})-{}({}, {}) with {}", 
+      kind_display, cursor_kind, 
+      start_offset, start_line, start_column,
+      end_offset, end_line, end_column,
+      err
+    );
   }
 }

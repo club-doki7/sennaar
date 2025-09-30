@@ -29,6 +29,12 @@ pub enum CExpr<'a> {
     Paren(Box<CParenExpr<'a>>),
 }
 
+impl <'a> CExpr<'a> {
+    pub fn identifier(ident: Identifier) -> CExpr<'a> {
+        CExpr::Identifier(Box::new(CIdentifierExpr { ident }))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(JsonSchema)]
 pub struct CIntLiteralExpr<'a> {
@@ -201,11 +207,11 @@ impl <'a> Display for CExpr<'a> {
             CExpr::PtrMember(mem) => write!(f, "(*{}).{}", mem.obj, mem.member),
             CExpr::PostfixIncDec(e) => write!(f, "{}{}", e.expr, post_op_describe(e.op)),
             CExpr::Unary(e) => match e.op {
-                CUnaryOp::AddrOf => write!(f, "sizeof({})", e.expr),
-                CUnaryOp::AlignOf => write!(f, "??({})", e.expr),
+                CUnaryOp::SizeOf => write!(f, "sizeof({})", e.expr),
+                CUnaryOp::AlignOf => write!(f, "alignof({})", e.expr),
                 _ => write!(f, "{}{}", pre_op_describe(e.op), e.expr),
             },
-            CExpr::Cast(_c) => todo!(),
+            CExpr::Cast(c) => write!(f, "({}) {}", c.ty, c.expr),
             CExpr::Binary(b) => write!(f, "{} {} {}", b.lhs, bin_op_describe(b.op), b.rhs),
             CExpr::Conditional(c) => write!(f, "{} ? {} : {}", c.cond, c.then, c.otherwise),
             CExpr::Paren(p) => write!(f, "({})", p.expr),
