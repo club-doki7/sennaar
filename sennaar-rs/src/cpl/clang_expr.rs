@@ -66,17 +66,13 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
         }))
       }
       CXCursor_ArraySubscriptExpr => {
-        let children = get_children(cursor);
-        if children.len() != 2 { 
-          return Err("Size doesn't match(ArraySub)".to_string());
-        } else {
-          let base = map_nodes(children[0])?;
-          let index = map_nodes(children[1])?;
+        let [ raw_base, raw_index ] = get_children_n::<2>(cursor)?;
+        let base = map_nodes(raw_base)?;
+        let index = map_nodes(raw_index)?;
 
-          CExpr::Index(Box::new(CIndexExpr {
-            base, index
-          }))
-        }
+        CExpr::Index(Box::new(CIndexExpr {
+          base, index
+        }))
       }
       CXCursor_CallExpr => {
         let children = get_children(cursor);
@@ -95,16 +91,12 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
       }
       CXCursor_MemberRefExpr => {
         let member = get_identifier(cursor)?;
-        let children = get_children(cursor);
-        if children.len() != 1 {
-          return Err("Size doesn't match(MemberRef)".to_string());
-        } else {
-          let obj = map_nodes(children[0])?;
+        let [ raw_obj ] = get_children_n::<1>(cursor)?;
+        let obj = map_nodes(raw_obj)?;
 
-          CExpr::Member(Box::new(CMemberExpr {
-            obj, member
-          }))
-        }
+        CExpr::Member(Box::new(CMemberExpr {
+          obj, member
+        }))
       }
       CXCursor_UnaryOperator => {
         let kind = clang_getCursorUnaryOperatorKind(cursor);
@@ -123,14 +115,13 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
           _ => unreachable!()
         };
 
-        let children = get_children(cursor);
-        if children.len() != 1 { return Err("Size doesn't match(UnaryOperator)".to_string()) }
-        let child = map_nodes(children[0])?;
+        let [ child ] = get_children_n(cursor)?;
+        let expr = map_nodes(child)?;
 
-        op_code.either_with(child, |child, op| CExpr::PostfixIncDec(Box::new(CPostfixIncDecExpr {
-          expr: child, op
-        })), |child, op| CExpr::Unary(Box::new(CUnaryExpr {
-          expr: child, op
+        op_code.either_with(expr, |expr, op| CExpr::PostfixIncDec(Box::new(CPostfixIncDecExpr {
+          expr, op
+        })), |expr, op| CExpr::Unary(Box::new(CUnaryExpr {
+          expr, op
         })))
       }
       // what?
@@ -200,13 +191,10 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
           _ => unreachable!()
         };
 
-        let children = get_children(cursor);
-        if children.len() != 2 {
-          return Err("Size doesn't match(BinaryOperator)".to_string());
-        }
+        let [ raw_lhs, raw_rhs ] = get_children_n(cursor)?;
 
-        let lhs = map_nodes(children[0])?;
-        let rhs = map_nodes(children[1])?;
+        let lhs = map_nodes(raw_lhs)?;
+        let rhs = map_nodes(raw_rhs)?;
 
         CExpr::Binary(Box::new(CBinaryExpr {
           op: op_code,
@@ -215,33 +203,27 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
       }
 
       CXCursor_ConditionalOperator => {
-        let children = get_children(cursor);
-        if children.len() != 3 { return Err("Size doesn't match(ConditionalOperator)".to_string()); }
+        let [ raw_cond, raw_then, raw_otherwise ] = get_children_n(cursor)?;
 
-        let cond = map_nodes(children[0])?;
-        let then = map_nodes(children[1])?;
-        let otherwise = map_nodes(children[2])?;
+        let cond = map_nodes(raw_cond)?;
+        let then = map_nodes(raw_then)?;
+        let otherwise = map_nodes(raw_otherwise)?;
 
         CExpr::Conditional(Box::new(CConditionalExpr {
           cond, then, otherwise
         }))
       }
       CXCursor_ParenExpr => {
-        let children = get_children(cursor);
-        if children.len() != 1 { return Err("Size doesn't match(ParenExpr)".to_string()) }
-        let expr = map_nodes(children[0])?;
+        let [ child ] = get_children_n(cursor)?;
+        let expr = map_nodes(child)?;
 
         CExpr::Paren(Box::new(CParenExpr { expr }))
       }
       // We don't know that it is, so let's hope it has only one child.
       // This is typically a implicit cast.
       CXCursor_UnexposedExpr => {
-        let children = get_children(cursor);
-        if children.len() != 1 {
-          return Err("Size doesn't match(UnexposedExpr)".to_string());
-        } else {
-          map_nodes(children[0])?
-        }
+        let [ child ] = get_children_n(cursor)?;
+        map_nodes(child)?
       }
       _ => todo!("{}", cursor_kind)
     };
