@@ -5,7 +5,7 @@ use std::fmt::Display;
 use clang_sys::*;
 
 use crate::{Identifier, Internalize};
-use crate::cpl::clang_utils::{from_CXString, get_parameters};
+use crate::cpl::clang_utils::*;
 
 #[derive(Debug)]
 pub enum CType {
@@ -52,7 +52,7 @@ impl Display for CType {
     }
 }
 
-pub unsafe fn map_ty(ty: CXType) -> Result<CType, String> {
+pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
   unsafe {
     if let Some(prime) = try_map_primitive(ty) {
       return Ok(prime)

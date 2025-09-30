@@ -2,8 +2,10 @@ use std::ffi::{c_void, CStr};
 
 use clang_sys::*;
 
+pub type ClangError = String;
+
 /// convert and consume
-pub unsafe fn from_CXString(s: CXString) -> Result<String, String> {
+pub unsafe fn from_CXString(s: CXString) -> Result<String, ClangError> {
   unsafe {
     let raw_cs = clang_getCString(s);
     let owned = CStr::from_ptr(raw_cs).to_str().map_err(|e| e.to_string())?.to_owned();
@@ -30,7 +32,7 @@ pub fn get_children(cursor: CXCursor) -> Vec<CXCursor> {
   buffer
 }
 
-pub fn get_children_N<const N: usize>(cursor: CXCursor) -> Result<[CXCursor ; N], String> {
+pub fn get_children_n<const N: usize>(cursor: CXCursor) -> Result<[CXCursor ; N], ClangError> {
   let children = get_children(cursor);
   children.try_into()
     .map_err(|v: Vec<CXCursor>| format!("Children size doesn't match, expected {}, but got {}", N, v.len()))

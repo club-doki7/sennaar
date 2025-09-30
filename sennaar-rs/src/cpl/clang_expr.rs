@@ -6,11 +6,11 @@ use std::{borrow::Cow};
 use crate::cpl::clang_ty::map_ty;
 use crate::{Identifier, Internalize};
 use crate::cpl::expr::*;
-use crate::cpl::clang_utils::{from_CXString, get_children, get_children_N};
+use crate::cpl::clang_utils::*;
 
 // TODO: improve error reporting
 // TODO: improve life time
-pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, String> {
+pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> {
   unsafe {
     let cursor_kind = clang_getCursorKind(cursor);
 
@@ -150,7 +150,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, String> {
         todo!()
       }
       CXCursor_CStyleCastExpr => {
-        let [ casted ] = get_children_N::<1>(cursor)?;
+        let [ casted ] = get_children_n::<1>(cursor)?;
         let ty = clang_getCursorType(cursor);
         let cty = map_ty(ty)?;
 
@@ -265,7 +265,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, String> {
 // }
 
 /// Get identifier from the display name of [cursor]
-unsafe fn get_identifier(cursor: CXCursor) -> Result<Identifier, String> {
+unsafe fn get_identifier(cursor: CXCursor) -> Result<Identifier, ClangError> {
   unsafe {
     let display = clang_getCursorDisplayName(cursor);
     let s = from_CXString(display)?;
