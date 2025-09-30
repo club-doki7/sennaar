@@ -14,19 +14,22 @@ pub enum CSign {
 
 #[derive(Debug)]
 pub enum CType {
-  Identifier { signed: CSign, ident: Identifier },
+  Primitive { signed: CSign, ident: Identifier },
   Array(Box<CType>, u64),
   Pointer(Box<CType>),
   FunProto(Box<CType>, Vec<CType>),
+  Struct(Identifier),
+  Enum(Identifier),
+  Typedef(Identifier),
 }
 
 impl CType {
   pub fn signed(ident: Identifier) -> CType {
-    CType::Identifier { signed: CSign::Signed, ident }
+    CType::Primitive { signed: CSign::Signed, ident }
   }
 
   pub fn unsigned(ident: Identifier) -> CType {
-    CType::Identifier { signed: CSign::Unsigned, ident }
+    CType::Primitive { signed: CSign::Unsigned, ident }
   }
 
   pub fn fmt_fun(f: &mut std::fmt::Formatter<'_>, ret: &Box<CType>, params: &Vec<CType>, name: Option<Identifier>) -> std::fmt::Result {
@@ -50,7 +53,7 @@ impl CType {
 impl Display for CType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            CType::Identifier { signed, ident } => match *signed {
+            CType::Primitive { signed, ident } => match *signed {
                 CSign::Signed => write!(f, "{}", ident),
                 CSign::ExplicitSigned => write!(f, "signed {}", ident),
                 CSign::Unsigned => write!(f, "unsigned {}", ident),
@@ -61,6 +64,9 @@ impl Display for CType {
                 _ => write!(f, "{}*", ctype)
             },
             CType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, None),
+            CType::Typedef(ident) => write!(f, "{}", ident),
+            CType::Struct(ident) => write!(f, "struct {}", ident),
+            CType::Enum(ident) => write!(f, "enum {}", ident),
         }
     }
 }
@@ -107,6 +113,40 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
 
         CType::Array(Box::new(mapped_element_ty), size as u64)
       }
+
+      // struct Foo/enum Bar/typedef things
+      CXType_Elaborated => {
+        let inner = clang_Type_getNamedType(ty);
+        map_ty(inner)?
+      }
+
+      CXType_Typedef => {
+        let raw_name = clang_getTypedefName(ty);
+        let name = from_CXString(raw_name)?;
+        CType::Typedef(name.interned())
+      }
+
+      CXType_Record => {
+        // dont think this works
+        // FIXME: doesn't work, removing leading 'struct '
+        let raw_name = clang_getTypeSpelling(ty);
+        let name_with_struct = from_CXString(raw_name)?;
+        if let Some(name) = name_with_struct.strip_prefix("struct ") {
+          CType::Struct(name.interned())
+        } else {
+          unreachable!();
+        }
+      }
+
+      CXType_Enum => {
+        let raw_name = clang_getTypeSpelling(ty);
+        let name_with_enum = from_CXString(raw_name)?;
+        if let Some(name) = name_with_enum.strip_prefix("enum ") {
+          CType::Enum(name.interned())
+        } else {
+          unreachable!();
+        }
+      }
     
       _ => {
         let raw_type_display = clang_getTypeSpelling(ty);
@@ -138,7 +178,7 @@ fn try_map_primitive(ty: CXType) -> Option<CType> {
 
   let sign = map_primitive_sign(ty);
 
-  Some(CType::Identifier { signed: sign, ident: ident.interned() })
+  Some(CType::Primitive { signed: sign, ident: ident.interned() })
 }
 
 /// If the sign is determined by the type (such as uint128), the implementation should return `CSign::Signed`

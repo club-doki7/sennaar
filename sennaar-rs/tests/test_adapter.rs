@@ -42,12 +42,16 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVi
       print_padding(level);
       println!("Type: {}", cty);
     } else {
-      if cursor_kind == CXCursor_FunctionDecl {
-        let ty = clang_getCursorType(e);
-        let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
+      match cursor_kind {
+        CXCursor_FunctionDecl => {
+          let ty = clang_getCursorType(e);
+          let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
 
-        print_padding(level);
-        println!("Function Type: {}", cty);
+          print_padding(level);
+          println!("Function Type: {}", cty);
+        }
+        
+        _ => { }
       }
 
       clang_visitChildren(e, visitor, ((&mut ClientData { level: level + 1 }) as *mut ClientData).cast());

@@ -5,6 +5,10 @@ enum WHAT {
   FOO, BAR
 };
 
+struct Foo {
+  int *aa;
+};
+
 typedef unsigned long long ull;
 
 int foo(int a, int b) {
@@ -24,6 +28,9 @@ int callback(int (*f)(unsigned int, int), int arr[10]) {
 }
 
 void char_hell(unsigned char uchar, char char_s, signed char schar) {
+}
+
+void elaborate(ull b, struct Foo* foo, enum WHAT what) {
 }
 
 int noproto() {
