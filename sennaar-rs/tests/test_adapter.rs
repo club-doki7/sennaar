@@ -15,32 +15,53 @@ fn adapt_expr() {
       CXTranslationUnit_None
     );
     let cursor = clang_getTranslationUnitCursor(unit);
-    clang_visitChildren(cursor, visitor, null_mut());
+    clang_visitChildren(cursor, visitor, ((&mut ClientData { level: 0 }) as *mut ClientData).cast());
   }
 }
 
-extern "C" fn visitor(e: CXCursor, _p: CXCursor, _data: *mut c_void) -> CXChildVisitResult {
+struct ClientData {
+  level: u32
+}
+
+extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVisitResult {
   unsafe {
+    let client_data = &*(data as *mut ClientData);
+    let level = client_data.level;
+
     let cursor_kind = clang_getCursorKind(e);
     if clang_isExpression(cursor_kind) != 0 {
       let mapped = clang_expr::map_nodes(e)
         .unwrap_or_else(|err| error(err, e));
       
+      print_padding(level);
       println!("Expr: {}", mapped);
     } else if cursor_kind == CXCursor_ParmDecl {
       let ty = clang_getCursorType(e);
       let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
 
+      print_padding(level);
       println!("Type: {}", cty);
     } else {
-      clang_visitChildren(e, visitor, null_mut());
+      if cursor_kind == CXCursor_FunctionDecl {
+        let ty = clang_getCursorType(e);
+        let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
+
+        print_padding(level);
+        println!("Function Type: {}", cty);
+      }
+
+      clang_visitChildren(e, visitor, ((&mut ClientData { level: level + 1 }) as *mut ClientData).cast());
     }
 
     CXChildVisit_Continue
   }
 }
 
-unsafe fn error(err: String, e: CXCursor) -> ! { 
+fn print_padding(level: u32) {
+  print!("{}", " ".repeat(level as usize));
+}
+
+fn error(err: String, e: CXCursor) -> ! { 
   unsafe {
     let cursor_kind = clang_getCursorKind(e);
     let cxcs = clang_getCursorKindSpelling(cursor_kind);
