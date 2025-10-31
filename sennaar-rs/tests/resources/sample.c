@@ -11,16 +11,15 @@ struct Foo {
 
 typedef unsigned long long ull;
 
-int foo(int a, int b) {
-  int aaa = BAR;
-  char c = '\n';
+void foo(int a, int b) {
   int arr[5];
   // int int_size = sizeof(int);
   arr[0] = a++;
   arr[0x01] = ++b;
   arr[2] = 1 ? !MAKRO : 0;
-  ull what = BIG_MACRO;
-  return (short) arr[0] + arr[1];
+  foo(&arr, *arr);
+  (int) 0x114514;
+  a += b;
 }
 
 int callback(int (*f)(unsigned int, int), int arr[10]) {

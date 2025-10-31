@@ -195,7 +195,7 @@ impl <'a> Display for CExpr<'a> {
                 for i in 0..call.args.len() {
                     write!(f, "{}", call.args[i])?;
                     if i != call.args.len() - 1 {
-                        write!(f, ",")?;
+                        write!(f, ", ")?;
                     }
                 }
 

@@ -154,7 +154,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
       }
       
       // https://clang.llvm.org/doxygen/group__CINDEX__HIGH.html
-      CXCursor_BinaryOperator => {
+      CXCursor_BinaryOperator | CXCursor_CompoundAssignOperator => {
         let kind = clang_getCursorBinaryOperatorKind(cursor);
         let op_code = match kind {
           CXBinaryOperator_Mul => CBinaryOp::Mul,
@@ -225,7 +225,11 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
         let [ child ] = get_children_n(cursor)?;
         map_nodes(child)?
       }
-      _ => todo!("{}", cursor_kind)
+      _ => {
+        let cs = clang_getCursorKindSpelling(cursor_kind);
+        let s = from_CXString(cs).unwrap();
+        todo!("{}", s);
+      }
     };
 
     Ok(mapped)

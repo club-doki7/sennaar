@@ -32,6 +32,18 @@ pub fn get_children(cursor: CXCursor) -> Vec<CXCursor> {
   buffer
 }
 
+pub fn get_kind(cursor: CXCursor) -> CXCursorKind {
+  unsafe {
+    return clang_getCursorKind(cursor);
+  }
+}
+
+pub fn is_expression(cursor: CXCursor) -> bool {
+  unsafe {
+    clang_isExpression(get_kind(cursor)) != 0
+  }
+}
+
 pub fn get_children_n<const N: usize>(cursor: CXCursor) -> Result<[CXCursor ; N], ClangError> {
   let children = get_children(cursor);
   children.try_into()
