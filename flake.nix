@@ -10,8 +10,7 @@
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
-        llvmpkgs = pkgs.llvmPackages_18;
-        inherit (llvmpkgs) clang libclang;
+        libclang = pkgs.llvmPackages_18.libclang;
       in
       {
         devShells.default = with pkgs; mkShell {
@@ -20,8 +19,8 @@
             openssl pkg-config eza fd 
             rust-bin.stable.latest.default
 
-            # clang
-            llvm_18 clang libclang
+            # libclang
+            libclang
           ];
 
           LIBCLANG_PATH = lib.makeLibraryPath [ libclang.lib ];
