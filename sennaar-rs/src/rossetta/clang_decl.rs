@@ -3,74 +3,11 @@ use std::fmt::Display;
 use clang_sys::*;
 
 use crate::{
-    Identifier, Internalize,
-    rossetta::{
-        clang_ty::{CParamLike, CType, map_cursor_ty, map_ty},
+    Internalize, cpl::*, rossetta::{
+        clang_ty::*,
         clang_utils::*,
-    },
+    }
 };
-
-pub enum CDecl {
-    Typedef(Box<CTypedefDecl>),
-    Fn(Box<CFnDecl>),
-    Struct(Box<CStructDecl>),
-    Enum(Box<CEnumDecl>),
-}
-
-pub struct CTypedefDecl {
-    name: Identifier,
-    underlying: CType,
-}
-
-pub struct CFnDecl {
-    name: Identifier,
-    ret: Box<CType>,
-    parameters: Vec<CParamDecl>,
-}
-
-pub struct CParamDecl {
-    name: Identifier,
-    ty: CType,
-}
-
-pub struct CStructDecl {
-    name: Identifier,
-    fields: Vec<CFieldDecl>,
-}
-
-pub struct CFieldDecl {
-    name: Identifier,
-    ty: CType,
-}
-
-pub struct CEnumDecl {
-    name: Identifier,
-    ty: CType,
-    members: Vec<CEnumConstantDecl>,
-}
-
-/// @param explicit whether the value of this decl is explicit
-pub struct CEnumConstantDecl {
-    name: Identifier,
-    explicit: bool,
-    value: u64,
-}
-
-impl Display for CParamDecl {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.ty, self.name)
-    }
-}
-
-impl CParamLike for CParamDecl {
-    fn name(&self) -> Option<&Identifier> {
-        Some(&self.name)
-    }
-
-    fn ty(&self) -> &CType {
-        &self.ty
-    }
-}
 
 #[allow(non_upper_case_globals)]
 pub unsafe fn map_decl(cursor: CXCursor) -> Result<CDecl, ClangError> {
