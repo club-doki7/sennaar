@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt::Display};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -27,6 +27,12 @@ pub enum CExpr<'a> {
     Binary(Box<CBinaryExpr<'a>>),
     Conditional(Box<CConditionalExpr<'a>>),
     Paren(Box<CParenExpr<'a>>),
+}
+
+impl <'a> CExpr<'a> {
+    pub fn identifier(ident: Identifier) -> CExpr<'a> {
+        CExpr::Identifier(Box::new(CIdentifierExpr { ident }))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -143,12 +149,11 @@ ss_enum!{
     Less, Greater, LessEq, GreaterEq,
     Eq, NotEq,
     BitAnd, BitXor, BitOr,
-    And, Or, Xor,
+    And, Or,
     Assign, MulAssign, DivAssign, ModAssign,
     AddAssign, SubAssign,
     ShlAssign, ShrAssign,
     BitAndAssign, BitXorAssign, BitOrAssign,
-    AndAssign, OrAssign, XorAssign,
     Comma
 }
 
@@ -172,4 +177,99 @@ pub struct CConditionalExpr<'a> {
 #[derive(JsonSchema)]
 pub struct CParenExpr<'a> {
     pub expr: CExpr<'a>,
+}
+
+impl <'a> Display for CExpr<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            CExpr::IntLiteral(i) => write!(f, "{}{}", i.value, i.suffix),
+            CExpr::FloatLiteral(d) => write!(f, "{}{}", d.value, d.suffix),
+            CExpr::CharLiteral(c) => write!(f, "'{}'", c.value),
+            CExpr::StringLiteral(s) => write!(f, "\"{}\"", s.value),
+            CExpr::Identifier(i) => write!(f, "{}", i.ident),
+            CExpr::Index(arr_sub) => write!(f, "{}[{}]", arr_sub.base, arr_sub.index),
+            CExpr::Call(call) => {
+                write!(f, "{}(", call.callee)?;
+
+                for i in 0..call.args.len() {
+                    write!(f, "{}", call.args[i])?;
+                    if i != call.args.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+
+                write!(f, ")")?;
+
+                Ok(())
+            },
+            CExpr::Member(mem) => write!(f, "{}.{}", mem.obj, mem.member),
+            CExpr::PtrMember(mem) => write!(f, "(*{}).{}", mem.obj, mem.member),
+            CExpr::PostfixIncDec(e) => write!(f, "{}{}", e.expr, post_op_describe(e.op)),
+            CExpr::Unary(e) => match e.op {
+                CUnaryOp::SizeOf => write!(f, "sizeof({})", e.expr),
+                CUnaryOp::AlignOf => write!(f, "alignof({})", e.expr),
+                _ => write!(f, "{}{}", pre_op_describe(e.op), e.expr),
+            },
+            CExpr::Cast(c) => write!(f, "({}) {}", c.ty, c.expr),
+            CExpr::Binary(b) => write!(f, "{} {} {}", b.lhs, bin_op_describe(b.op), b.rhs),
+            CExpr::Conditional(c) => write!(f, "{} ? {} : {}", c.cond, c.then, c.otherwise),
+            CExpr::Paren(p) => write!(f, "({})", p.expr),
+        }
+    }
+}
+
+fn bin_op_describe(op: CBinaryOp) -> &'static str {
+    match op {
+        CBinaryOp::Mul => "*",
+        CBinaryOp::Div => "/",
+        CBinaryOp::Mod => "%",
+        CBinaryOp::Add => "+",
+        CBinaryOp::Sub => "-",
+        CBinaryOp::Shl => "<<",
+        CBinaryOp::Shr => ">>",
+        CBinaryOp::Less => "<",
+        CBinaryOp::Greater => ">",
+        CBinaryOp::LessEq => "<=",
+        CBinaryOp::GreaterEq => ">=",
+        CBinaryOp::Eq => "==",
+        CBinaryOp::NotEq => "!=",
+        CBinaryOp::BitAnd => "&",
+        CBinaryOp::BitXor => "^",
+        CBinaryOp::BitOr => "|",
+        CBinaryOp::And => "&&",
+        CBinaryOp::Or => "||",
+        CBinaryOp::Assign => "=",
+        CBinaryOp::MulAssign => "*=",
+        CBinaryOp::DivAssign => "/=",
+        CBinaryOp::ModAssign => "%=",
+        CBinaryOp::AddAssign => "+=",
+        CBinaryOp::SubAssign => "-=",
+        CBinaryOp::ShlAssign => "<<=",
+        CBinaryOp::ShrAssign => ">>=",
+        CBinaryOp::BitAndAssign => "&=",
+        CBinaryOp::BitXorAssign => "^=",
+        CBinaryOp::BitOrAssign => "|=",
+        CBinaryOp::Comma => ",",
+    }
+}
+
+fn pre_op_describe(op: CUnaryOp) -> &'static str {
+    match op {
+        CUnaryOp::Plus => "+",
+        CUnaryOp::Minus => "-",
+        CUnaryOp::Not => "!",
+        CUnaryOp::BitNot => "~",
+        CUnaryOp::Deref => "*",
+        CUnaryOp::AddrOf => "&",
+        CUnaryOp::Inc => "++",
+        CUnaryOp::Dec => "--",
+        CUnaryOp::SizeOf | CUnaryOp::AlignOf => unreachable!(),
+    }
+}
+
+fn post_op_describe(op: CPostfixIncDecOp) -> &'static str {
+    match op {
+        CPostfixIncDecOp::Inc => "++",
+        CPostfixIncDecOp::Dec => "--",
+    }
 }
