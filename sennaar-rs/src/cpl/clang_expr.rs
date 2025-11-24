@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use clang_sys::*;
+use std::ptr::null_mut;
 use std::{borrow::Cow};
 
 use crate::cpl::clang_ty::map_ty;
@@ -126,8 +127,29 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
       }
       // what?
       CXCursor_UnaryExpr => {
+        let kind = clang_getCursorUnaryOperatorKind(cursor);
+        println!("UnaryExpr kind: {}", kind);
+
+        let range = clang_getCursorExtent(cursor);
+        let start = clang_getRangeStart(range);
+        let end = clang_getRangeEnd(range);
+
+        let mut line_start = 0u32;
+        let mut line_end = 0u32;
+        let mut column_start = 0u32;
+        let mut column_end = 0u32;
+        let mut offset_start = 0u32;
+        let mut offset_end = 0u32;
+
+        clang_getFileLocation(start, null_mut(), &mut line_start, &mut column_start, &mut offset_start);
+        clang_getFileLocation(end, null_mut(), &mut line_end, &mut column_end, &mut offset_end);
+
+        eprintln!("UnaryExpr location: {}:{} - {}:{}", line_start, column_start, line_end, column_end);
+        eprintln!("Offsets: {} - {}", offset_start, offset_end);
+
         let children = get_children(cursor);
         let ty = clang_getCursorType(cursor);
+        println!("Type kind: {}", ty.kind);
         let argc = clang_Cursor_getNumArguments(cursor);
         println!("Children count: {}", children.len());
         println!("argc: {}", argc);
@@ -137,7 +159,6 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
         println!("result value: {}", clang_EvalResult_getAsInt(result));
         clang_EvalResult_dispose(result);
 
-        
         todo!()
       }
       CXCursor_CStyleCastExpr => {
@@ -223,13 +244,20 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
       // We don't know that it is, so let's hope it has only one child.
       // This is typically a implicit cast.
       CXCursor_UnexposedExpr => {
+        let spelling = clang_getCursorKindSpelling(cursor_kind);
+        let s = from_CXString(spelling).unwrap();
+        let argc = clang_Cursor_getNumArguments(cursor);
+        let children_count = get_children(cursor).len();
+
+        eprintln!("UnexposedExpr encountered: {}, argc: {}, children_count: {}", s, argc, children_count);
+
         let [ child ] = get_children_n(cursor)?;
         map_nodes(child)?
       }
       _ => {
         let cs = clang_getCursorKindSpelling(cursor_kind);
         let s = from_CXString(cs).unwrap();
-        todo!("{}", s);
+        todo!("unknown cursor kind: {}", s);
       }
     };
 
