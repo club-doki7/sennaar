@@ -13,6 +13,7 @@ pub fn test_resource() -> CXCursor {
             0,
             null_mut(),
             0,
+            // this option keeps `typedef`s and macros
             CXTranslationUnit_DetailedPreprocessingRecord,
         );
 

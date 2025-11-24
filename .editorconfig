@@ -1,0 +1,8 @@
+root = true
+
+[*.rs]
+charset = utf-8
+tab_width = 4
+indent_size = 4
+indent_style = space
+insert_final_newline = true
