@@ -4,7 +4,7 @@ use std::{
 };
 
 use clang_sys::*;
-use sennaar::cpl::{
+use sennaar::rossetta::{
     clang_expr::{self, map_nodes},
     clang_ty::map_ty,
     clang_utils::{from_CXString, get_children, is_expression},
