@@ -1,6 +1,6 @@
 use std::{ffi::{c_void}, ptr::{null, null_mut}};
 
-use sennaar::cpl::{clang_expr::{self, map_nodes}, clang_ty::map_ty, clang_utils::{from_CXString, get_children, get_kind, is_expression}};
+use sennaar::cpl::{clang_expr::{self, map_nodes}, clang_ty::map_ty, clang_utils::{from_CXString, get_children, is_expression}};
 use clang_sys::*;
 
 #[test]
@@ -95,6 +95,7 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVi
       println!("Type: {}", cty);
     } else {
       match cursor_kind {
+        #[allow(non_upper_case_globals)]
         CXCursor_FunctionDecl => {
           let ty = clang_getCursorType(e);
           let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
