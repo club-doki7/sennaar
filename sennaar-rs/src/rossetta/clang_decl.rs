@@ -3,10 +3,9 @@ use std::fmt::Display;
 use clang_sys::*;
 
 use crate::{
-    Internalize, cpl::*, rossetta::{
-        clang_ty::*,
-        clang_utils::*,
-    }
+    Internalize,
+    cpl::*,
+    rossetta::{clang_ty::*, clang_utils::*},
 };
 
 #[allow(non_upper_case_globals)]

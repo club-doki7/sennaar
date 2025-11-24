@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use crate::{Identifier, Internalize};
 
-
 #[derive(Debug)]
 pub enum CSign {
     Signed,

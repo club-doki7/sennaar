@@ -2,9 +2,9 @@
 
 use clang_sys::*;
 
+use crate::Internalize;
 use crate::cpl::{CSign, CType};
 use crate::rossetta::clang_utils::*;
-use crate::{Internalize};
 
 // TODO: safety section??
 pub unsafe fn map_cursor_ty(cursor: CXCursor) -> Result<CType, ClangError> {

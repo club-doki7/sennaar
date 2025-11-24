@@ -1,7 +1,9 @@
 use std::fmt::Display;
 
-use crate::{Identifier, cpl::{CParamLike, CType}};
-
+use crate::{
+    Identifier,
+    cpl::{CParamLike, CType},
+};
 
 pub enum CDecl {
     Typedef(Box<CTypedefDecl>),
