@@ -5,6 +5,7 @@ use clang_sys::*;
 pub type ClangError = String;
 
 /// convert and consume
+#[allow(non_snake_case)]
 pub unsafe fn from_CXString(s: CXString) -> Result<String, ClangError> {
   unsafe {
     let raw_cs = clang_getCString(s);

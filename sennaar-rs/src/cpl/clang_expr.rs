@@ -164,6 +164,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
           CXBinaryOperator_Sub => CBinaryOp::Sub,
           CXBinaryOperator_Shl => CBinaryOp::Shl,
           CXBinaryOperator_Shr => CBinaryOp::Shr,
+          // C++ three-way comparison ("spaceshuttle") operator. We don't support C++ yet so this is okay.
           // CXBinaryOperator_Cmp => CBinaryOp::Cmp,
           CXBinaryOperator_LT => CBinaryOp::Less,
           CXBinaryOperator_GT => CBinaryOp::Greater,
@@ -184,9 +185,9 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
           CXBinaryOperator_SubAssign => CBinaryOp::SubAssign,
           CXBinaryOperator_ShlAssign => CBinaryOp::ShlAssign,
           CXBinaryOperator_ShrAssign => CBinaryOp::ShrAssign,
-          CXBinaryOperator_AndAssign => CBinaryOp::AndAssign,
-          CXBinaryOperator_XorAssign => CBinaryOp::XorAssign,
-          CXBinaryOperator_OrAssign => CBinaryOp::OrAssign,
+          CXBinaryOperator_AndAssign => CBinaryOp::BitAndAssign,
+          CXBinaryOperator_XorAssign => CBinaryOp::BitXorAssign,
+          CXBinaryOperator_OrAssign => CBinaryOp::BitOrAssign,
           CXBinaryOperator_Comma => CBinaryOp::Comma,
           _ => unreachable!()
         };

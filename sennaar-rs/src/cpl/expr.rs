@@ -149,12 +149,11 @@ ss_enum!{
     Less, Greater, LessEq, GreaterEq,
     Eq, NotEq,
     BitAnd, BitXor, BitOr,
-    And, Or, Xor,
+    And, Or,
     Assign, MulAssign, DivAssign, ModAssign,
     AddAssign, SubAssign,
     ShlAssign, ShrAssign,
     BitAndAssign, BitXorAssign, BitOrAssign,
-    AndAssign, OrAssign, XorAssign,
     Comma
 }
 
@@ -239,7 +238,6 @@ fn bin_op_describe(op: CBinaryOp) -> &'static str {
         CBinaryOp::BitOr => "|",
         CBinaryOp::And => "&&",
         CBinaryOp::Or => "||",
-        CBinaryOp::Xor => "^",
         CBinaryOp::Assign => "=",
         CBinaryOp::MulAssign => "*=",
         CBinaryOp::DivAssign => "/=",
@@ -251,9 +249,6 @@ fn bin_op_describe(op: CBinaryOp) -> &'static str {
         CBinaryOp::BitAndAssign => "&=",
         CBinaryOp::BitXorAssign => "^=",
         CBinaryOp::BitOrAssign => "|=",
-        CBinaryOp::AndAssign => "&&=",      // ???
-        CBinaryOp::OrAssign => "||=",
-        CBinaryOp::XorAssign => "^=",
         CBinaryOp::Comma => ",",
     }
 }
