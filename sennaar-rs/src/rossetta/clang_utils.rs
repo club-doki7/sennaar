@@ -17,32 +17,80 @@ pub unsafe fn from_CXString(s: CXString) -> Result<String, ClangError> {
         Ok(owned)
     }
 }
+pub fn get_cursor_display(cursor: CXCursor) -> Result<String, ClangError> {
+    unsafe {
+        let raw = clang_getCursorDisplayName(cursor);
+        from_CXString(raw)
+    }
+}
+
+pub fn get_cursor_spelling(cursor: CXCursor) -> Result<String, ClangError> {
+    unsafe {
+        let raw = clang_getCursorSpelling(cursor);
+        from_CXString(raw)
+    }
+}
+
+// copy from clang-rs
+pub fn visit_children<F>(cursor: CXCursor, mut visitor: F)
+    where F: FnMut(CXCursor, CXCursor) -> CXChildVisitResult {
+    unsafe {
+        trait ChildVisitor {
+            fn visit(&mut self, cursor: CXCursor, parent: CXCursor) -> CXChildVisitResult;
+        }
+
+        extern "C" fn visit(cursor: CXCursor, parent: CXCursor, data_ptr: CXClientData) -> CXChildVisitResult {
+            unsafe {
+                let &mut ((), ref mut visitor) =
+                    &mut (*(data_ptr as *mut ((), &mut dyn ChildVisitor)));
+                visitor.visit(cursor, parent)
+            }
+        }
+
+        impl <F: FnMut(CXCursor, CXCursor) -> CXChildVisitResult> ChildVisitor for F {
+            fn visit(&mut self, cursor: CXCursor, parent: CXCursor) -> CXChildVisitResult {
+                self(cursor, parent)
+            }
+        }
+
+        let mut data = ((), (&mut visitor as &mut dyn ChildVisitor));
+
+        clang_visitChildren(cursor, visit, (&mut data as *mut ((), &mut dyn ChildVisitor)).cast());
+    }
+}
+
+pub fn first_children(cursor: CXCursor) -> Option<CXCursor> {
+    let mut opt: Option<CXCursor> = None;
+
+    visit_children(cursor, |cursor, _| {
+        opt.replace(cursor);
+        CXChildVisit_Break
+    });
+
+    opt
+}
 
 pub fn get_children(cursor: CXCursor) -> Vec<CXCursor> {
     let mut buffer = Vec::<CXCursor>::new();
 
-    extern "C" fn visit(cursor: CXCursor, _: CXCursor, data: CXClientData) -> CXChildVisitResult {
-        unsafe {
-            let buffer = &mut *(data as *mut Vec<CXCursor>);
-            buffer.push(cursor);
-            CXChildVisit_Continue
-        }
-    }
-
-    unsafe {
-        clang_visitChildren(
-            cursor,
-            visit,
-            (&mut buffer as *mut Vec<CXCursor>) as *mut c_void,
-        );
-    }
-
+    visit_children(cursor, |cursor, _| {
+        buffer.push(cursor);
+        CXVisit_Continue
+    });
+    
     buffer
 }
 
 pub fn get_kind(cursor: CXCursor) -> CXCursorKind {
     unsafe {
         return clang_getCursorKind(cursor);
+    }
+}
+
+pub fn get_kind_spelling(kind: CXCursorKind) -> Result<String, ClangError> {
+    unsafe {
+        let spelling = clang_getCursorKindSpelling(kind);
+        from_CXString(spelling)
     }
 }
 

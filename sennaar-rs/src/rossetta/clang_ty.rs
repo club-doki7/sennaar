@@ -25,6 +25,22 @@ pub enum CType {
     Typedef(Identifier),
 }
 
+// something that can be used as a parameter
+pub trait CParamLike : Display {
+    fn name(&self) -> Option<&Identifier>;
+    fn ty(&self) -> &CType;
+}
+
+impl CParamLike for CType {
+    fn name(&self) -> Option<&Identifier> {
+        None
+    }
+
+    fn ty(&self) -> &CType {
+        self
+    }
+}
+
 impl CType {
     pub fn signed(ident: Identifier) -> CType {
         CType::Primitive {
@@ -40,25 +56,32 @@ impl CType {
         }
     }
 
-    pub fn fmt_fun(
+    /// @param ptr only used when `name` is not [None]
+    pub fn fmt_fun<P: CParamLike>(
         f: &mut std::fmt::Formatter<'_>,
         ret: &Box<CType>,
-        params: &Vec<CType>,
-        name: Option<Identifier>,
+        params: &Vec<P>,
+        name: Option<&Identifier>,
+        is_ptr: bool,
     ) -> std::fmt::Result {
         write!(f, "{} ", ret)?;
         if let Some(name) = name {
-            write!(f, "(*{})", name)?;
+            if is_ptr {
+                write!(f, "(*{})", name)?;
+            } else {
+                write!(f, "{}", name)?;
+            }
         }
 
         write!(f, "(")?;
 
-        let params_str = params
-            .iter()
-            .map(|p| format!("{}", p))
-            .collect::<Vec<String>>();
-        let param_comma_seq = params_str.join(", ");
-        write!(f, "{}", param_comma_seq)?;
+        for (idx, p) in params.iter().enumerate() {
+            if idx != 0 {
+                write!(f, ", ")?;
+            }
+
+            p.fmt(f)?;
+        }
 
         write!(f, ")")?;
 
@@ -76,10 +99,10 @@ impl Display for CType {
             },
             CType::Array(ctype, size) => write!(f, "{}[{}]", ctype, size),
             CType::Pointer(ctype) => match &*(*ctype) {
-                CType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, Some("".interned())),
+                CType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, Some(&"".interned()), true),
                 _ => write!(f, "{}*", ctype),
             },
-            CType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, None),
+            CType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, None, false),
             CType::Typedef(ident) => write!(f, "{}", ident),
             CType::Struct(ident) => write!(f, "struct {}", ident),
             CType::Enum(ident) => write!(f, "enum {}", ident),
@@ -87,8 +110,16 @@ impl Display for CType {
     }
 }
 
+pub unsafe fn map_cursor_ty(cursor: CXCursor) -> Result<CType, ClangError> {
+    unsafe {
+        let ty = clang_getCursorType(cursor);
+        map_ty(ty)
+    }
+}
+
 pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
     unsafe {
+        // TODO: handle "const", see clang_isConstQualifiedType
         if let Some(prime) = try_map_primitive(ty) {
             return Ok(prime);
         }

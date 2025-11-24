@@ -6,12 +6,17 @@ use std::{
 use clang_sys::*;
 use sennaar::rossetta::{
     clang_expr::{self, map_nodes},
-    clang_ty::map_ty,
-    clang_utils::{from_CXString, get_children, is_expression},
+    clang_ty::{map_cursor_ty, map_ty},
+    clang_utils::{from_CXString, get_children, get_cursor_spelling, is_expression},
 };
 
+mod prelude;
+use prelude::*;
+
+// not really a test, this is used for showing how the ast look like
+// also use `clang -Xclang -ast-dump -fsyntax-only sample.c` to display the ast (not identical to the one we get)
 #[test]
-fn adapt_expr() {
+fn traversal() {
     unsafe {
         let index = clang_sys::clang_createIndex(0, 0);
         let unit = clang_sys::clang_parseTranslationUnit(
@@ -88,6 +93,8 @@ struct ClientData {
     level: u32,
 }
 
+// traversal the ast
+#[allow(non_upper_case_globals)]
 extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVisitResult {
     unsafe {
         let client_data = &*(data as *mut ClientData);
@@ -105,21 +112,58 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVi
 
             print_padding(level);
             println!("Expr: {}", mapped);
-        } else if cursor_kind == CXCursor_ParmDecl {
-            let ty = clang_getCursorType(e);
-            let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
-
-            print_padding(level);
-            println!("Type: {}", cty);
         } else {
+            let name = get_cursor_spelling(e).unwrap_or_error(e);
+
             match cursor_kind {
-                #[allow(non_upper_case_globals)]
                 CXCursor_FunctionDecl => {
                     let ty = clang_getCursorType(e);
-                    let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
+                    let cty = map_ty(ty).unwrap_or_error(e);
 
-                    print_padding(level);
-                    println!("Function Type: {}", cty);
+                    println_with_padding!(level, "Function Name: {}", name);
+                    println_with_padding!(level, "Function Type: {}", cty);
+                }
+
+                CXCursor_ParmDecl => {
+                    let cty = map_cursor_ty(e).unwrap_or_error(e);
+                    println_with_padding!(level, "Param Name: {}", name);
+                    println_with_padding!(level, "Param Type: {}", cty);
+                }
+
+                CXCursor_TypedefDecl => {
+                    // this is the typedef itself, i.e. `bar` in `typedef foo bar`
+                    // let ty = clang_getCursorType(e);
+                    // let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
+                    let underlying = clang_getTypedefDeclUnderlyingType(e);
+                    let cunderlying = map_ty(underlying).unwrap_or_error(e);
+
+                    println_with_padding!(level, "Typedef Name: {}", name);
+                    println_with_padding!(level, "Typedef Underlying: {}", cunderlying);
+                }
+
+                CXCursor_StructDecl => {
+                    println_with_padding!(level, "Struct Name: {}", name);
+                }
+
+                CXCursor_FieldDecl => {
+                    let ty = map_cursor_ty(e).unwrap_or_error(e);
+                    println_with_padding!(level, "Field Name: {}", name);
+                    println_with_padding!(level, "Field Type: {}", ty);
+                }
+
+                CXCursor_EnumDecl => {
+                    let ty = clang_getEnumDeclIntegerType(e);
+                    let cty = map_ty(ty).unwrap_or_error(e);
+
+                    println_with_padding!(level, "Enum Name: {}", name);
+                    println_with_padding!(level, "Enum Type: {}", cty);
+                }
+
+                CXCursor_EnumConstantDecl => {
+                    let value = clang_getEnumConstantDeclUnsignedValue(e);
+
+                    println_with_padding!(level, "Enum Member Name: {}", name);
+                    println_with_padding!(level, "Enum Value: {}", value);
                 }
 
                 _ => {}
@@ -133,56 +177,6 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVi
         }
 
         CXChildVisit_Continue
-    }
-}
-
-fn print_padding(level: u32) {
-    print!("{}", " ".repeat(level as usize));
-}
-
-fn error(err: String, e: CXCursor) -> ! {
-    unsafe {
-        let cursor_kind = clang_getCursorKind(e);
-        let kind_spelling = clang_getCursorKindSpelling(cursor_kind);
-        let kind_display = from_CXString(kind_spelling).unwrap_or_else(|err| error(err, e));
-
-        let range = clang_getCursorExtent(e);
-        let loc_start = clang_getRangeStart(range);
-        let loc_end = clang_getRangeEnd(range);
-        let mut file: CXFile = null_mut();
-        let mut start_line: u32 = 0;
-        let mut start_column: u32 = 0;
-        let mut start_offset: u32 = 0;
-        let mut end_line: u32 = 0;
-        let mut end_column: u32 = 0;
-        let mut end_offset: u32 = 0;
-        clang_getExpansionLocation(
-            loc_start,
-            &mut file,
-            &mut start_line,
-            &mut start_column,
-            &mut start_offset,
-        );
-        clang_getExpansionLocation(
-            loc_end,
-            &mut file,
-            &mut end_line,
-            &mut end_column,
-            &mut end_offset,
-        );
-
-        panic!(
-            "Failed to map nodes of cursor[{}({})]: {}({}, {})-{}({}, {}) with {}",
-            kind_display,
-            cursor_kind,
-            start_offset,
-            start_line,
-            start_column,
-            end_offset,
-            end_line,
-            end_column,
-            err
-        );
     }
 }
 

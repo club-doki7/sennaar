@@ -1,8 +1,9 @@
 #define MAKRO (114514)
 #define BIG_MACRO 1145141919810ULL
+#define BAD(s) s + s
 
 enum WHAT {
-  FOO, BAR
+  FOO, BAR, BAZ = 114514
 };
 
 struct Foo {
