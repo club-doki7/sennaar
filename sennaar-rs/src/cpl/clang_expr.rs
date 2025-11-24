@@ -147,6 +147,8 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
         eprintln!("UnaryExpr location: {}:{} - {}:{}", line_start, column_start, line_end, column_end);
         eprintln!("Offsets: {} - {}", offset_start, offset_end);
 
+        // TODO: @chuigda determine what we should do here. maybe retrieve the original source and parse it ourselves.
+
         let children = get_children(cursor);
         let ty = clang_getCursorType(cursor);
         println!("Type kind: {}", ty.kind);
@@ -243,6 +245,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
       }
       // We don't know that it is, so let's hope it has only one child.
       // This is typically a implicit cast.
+      // TODO @chuigda: to summarize what CXCursor_UnexposedExpr represents and handle various cases properly.
       CXCursor_UnexposedExpr => {
         let spelling = clang_getCursorKindSpelling(cursor_kind);
         let s = from_CXString(spelling).unwrap();

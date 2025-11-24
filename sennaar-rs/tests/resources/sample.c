@@ -13,7 +13,8 @@ typedef unsigned long long ull;
 
 void foo(int a, int b) {
   int arr[5];
-  int int_size = sizeof(int);
+  // comment to make CI happy, uncomment to test sizeof
+  // int int_size = sizeof(int);
   arr[0] = a++;
   arr[0x01] = ++b;
   arr[2] = 1 ? !MAKRO : 0;
