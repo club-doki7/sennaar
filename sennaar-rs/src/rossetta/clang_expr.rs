@@ -5,10 +5,10 @@ use std::ptr::null_mut;
 
 use clang_sys::*;
 
-use crate::{Identifier, Internalize};
 use crate::cpl::*;
 use crate::rossetta::clang_ty::map_ty;
 use crate::rossetta::clang_utils::*;
+use crate::{Identifier, Internalize};
 
 // TODO: improve error reporting
 // TODO: improve life time
@@ -85,7 +85,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
             }
             CXCursor_CallExpr => {
                 let children = get_children(cursor);
-                if children.len() == 0 {
+                if children.is_empty() {
                     return Err("Size doesn't match(CallExpr)".to_string());
                 } else {
                     let callee = map_nodes(children[0])?;

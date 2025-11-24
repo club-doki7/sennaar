@@ -4,8 +4,8 @@ use std::fmt::Display;
 
 use clang_sys::*;
 
-use crate::{Identifier, Internalize};
 use crate::rossetta::clang_utils::*;
+use crate::{Identifier, Internalize};
 
 #[derive(Debug)]
 pub enum CSign {
@@ -26,7 +26,7 @@ pub enum CType {
 }
 
 // something that can be used as a parameter
-pub trait CParamLike : Display {
+pub trait CParamLike: Display {
     fn name(&self) -> Option<&Identifier>;
     fn ty(&self) -> &CType;
 }
@@ -59,8 +59,8 @@ impl CType {
     /// @param ptr only used when `name` is not [None]
     pub fn fmt_fun<P: CParamLike>(
         f: &mut std::fmt::Formatter<'_>,
-        ret: &Box<CType>,
-        params: &Vec<P>,
+        ret: &CType,
+        params: &[P],
         name: Option<&Identifier>,
         is_ptr: bool,
     ) -> std::fmt::Result {
@@ -99,7 +99,9 @@ impl Display for CType {
             },
             CType::Array(ctype, size) => write!(f, "{}[{}]", ctype, size),
             CType::Pointer(ctype) => match &*(*ctype) {
-                CType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, Some(&"".interned()), true),
+                CType::FunProto(ret, params) => {
+                    CType::fmt_fun(f, ret, params, Some(&"".interned()), true)
+                }
                 _ => write!(f, "{}*", ctype),
             },
             CType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, None, false),
@@ -110,6 +112,7 @@ impl Display for CType {
     }
 }
 
+// TODO: safety section??
 pub unsafe fn map_cursor_ty(cursor: CXCursor) -> Result<CType, ClangError> {
     unsafe {
         let ty = clang_getCursorType(cursor);

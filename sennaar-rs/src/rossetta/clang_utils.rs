@@ -1,4 +1,4 @@
-use std::ffi::{CStr, c_void};
+use std::ffi::CStr;
 
 use clang_sys::*;
 
@@ -33,13 +33,19 @@ pub fn get_cursor_spelling(cursor: CXCursor) -> Result<String, ClangError> {
 
 // copy from clang-rs
 pub fn visit_children<F>(cursor: CXCursor, mut visitor: F)
-    where F: FnMut(CXCursor, CXCursor) -> CXChildVisitResult {
+where
+    F: FnMut(CXCursor, CXCursor) -> CXChildVisitResult,
+{
     unsafe {
         trait ChildVisitor {
             fn visit(&mut self, cursor: CXCursor, parent: CXCursor) -> CXChildVisitResult;
         }
 
-        extern "C" fn visit(cursor: CXCursor, parent: CXCursor, data_ptr: CXClientData) -> CXChildVisitResult {
+        extern "C" fn visit(
+            cursor: CXCursor,
+            parent: CXCursor,
+            data_ptr: CXClientData,
+        ) -> CXChildVisitResult {
             unsafe {
                 let &mut ((), ref mut visitor) =
                     &mut (*(data_ptr as *mut ((), &mut dyn ChildVisitor)));
@@ -47,7 +53,7 @@ pub fn visit_children<F>(cursor: CXCursor, mut visitor: F)
             }
         }
 
-        impl <F: FnMut(CXCursor, CXCursor) -> CXChildVisitResult> ChildVisitor for F {
+        impl<F: FnMut(CXCursor, CXCursor) -> CXChildVisitResult> ChildVisitor for F {
             fn visit(&mut self, cursor: CXCursor, parent: CXCursor) -> CXChildVisitResult {
                 self(cursor, parent)
             }
@@ -55,7 +61,11 @@ pub fn visit_children<F>(cursor: CXCursor, mut visitor: F)
 
         let mut data = ((), (&mut visitor as &mut dyn ChildVisitor));
 
-        clang_visitChildren(cursor, visit, (&mut data as *mut ((), &mut dyn ChildVisitor)).cast());
+        clang_visitChildren(
+            cursor,
+            visit,
+            (&mut data as *mut ((), &mut dyn ChildVisitor)).cast(),
+        );
     }
 }
 
@@ -77,14 +87,12 @@ pub fn get_children(cursor: CXCursor) -> Vec<CXCursor> {
         buffer.push(cursor);
         CXVisit_Continue
     });
-    
+
     buffer
 }
 
 pub fn get_kind(cursor: CXCursor) -> CXCursorKind {
-    unsafe {
-        return clang_getCursorKind(cursor);
-    }
+    unsafe { clang_getCursorKind(cursor) }
 }
 
 pub fn get_kind_spelling(kind: CXCursorKind) -> Result<String, ClangError> {

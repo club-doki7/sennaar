@@ -4,20 +4,20 @@ use clang_sys::*;
 use sennaar::rossetta::clang_utils::*;
 
 pub fn test_resource() -> CXCursor {
-  unsafe {
-    let index = clang_sys::clang_createIndex(0, 0);
-    let unit = clang_sys::clang_parseTranslationUnit(
-      index,
-      c"./tests/resources/sample.c".as_ptr(),
-      null(),
-      0,
-      null_mut(),
-      0,
-      CXTranslationUnit_DetailedPreprocessingRecord,
-    );
+    unsafe {
+        let index = clang_sys::clang_createIndex(0, 0);
+        let unit = clang_sys::clang_parseTranslationUnit(
+            index,
+            c"./tests/resources/sample.c".as_ptr(),
+            null(),
+            0,
+            null_mut(),
+            0,
+            CXTranslationUnit_DetailedPreprocessingRecord,
+        );
 
-    clang_getTranslationUnitCursor(unit)
-  }
+        clang_getTranslationUnitCursor(unit)
+    }
 }
 
 #[macro_export]
@@ -36,7 +36,7 @@ pub trait ResultExtension<T> {
     fn unwrap_or_error(self, e: CXCursor) -> T;
 }
 
-impl <T> ResultExtension<T> for Result<T, ClangError> {
+impl<T> ResultExtension<T> for Result<T, ClangError> {
     fn unwrap_or_error(self, e: CXCursor) -> T {
         self.unwrap_or_else(|err| error(err, e))
     }
