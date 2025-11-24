@@ -4,8 +4,8 @@ use std::fmt::Display;
 
 use clang_sys::*;
 
-use crate::cpl::clang_utils::*;
 use crate::{Identifier, Internalize};
+use crate::rossetta::clang_utils::*;
 
 #[derive(Debug)]
 pub enum CSign {
