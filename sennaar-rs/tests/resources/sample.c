@@ -24,7 +24,7 @@ typedef struct Wrap {
 
 typedef struct {
   int walue;
-} Wrap2, *Wrap3;
+} Wrap2, *Wrap3, Wrap2d5;
 
 typedef struct {
   int ualue;
@@ -37,6 +37,18 @@ struct {
 typedef struct {
   int xalue;
 } *Wrap5;
+
+// struct {
+//   int zalue;
+//   struct {
+//     int aalue;
+//   } aalue_s;
+
+//   union {
+//     int balue;
+//     int calue;
+//   };
+// };
 
 
 void foo(int a, int b) {

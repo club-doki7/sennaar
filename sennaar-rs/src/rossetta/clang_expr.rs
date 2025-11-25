@@ -6,14 +6,13 @@ use std::ptr::null_mut;
 use clang_sys::*;
 
 use crate::cpl::*;
-use crate::rossetta::clang_ctx::ClangCtx;
 use crate::rossetta::clang_ty::map_ty;
 use crate::rossetta::clang_utils::*;
 use crate::{Identifier, Internalize};
 
 // TODO: improve error reporting
 // TODO: improve life time
-pub unsafe fn map_expr(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CExpr<'static>, ClangError> {
+pub unsafe fn map_expr(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> {
     unsafe {
         let cursor_kind = clang_getCursorKind(cursor);
 
@@ -79,8 +78,8 @@ pub unsafe fn map_expr(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CExpr<'st
             })),
             CXCursor_ArraySubscriptExpr => {
                 let [raw_base, raw_index] = get_children_n::<2>(cursor)?;
-                let base = map_expr(raw_base, ctx)?;
-                let index = map_expr(raw_index, ctx)?;
+                let base = map_expr(raw_base)?;
+                let index = map_expr(raw_index)?;
 
                 CExpr::Index(Box::new(CIndexExpr { base, index }))
             }
@@ -89,11 +88,11 @@ pub unsafe fn map_expr(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CExpr<'st
                 if children.is_empty() {
                     return Err("Size doesn't match(CallExpr)".to_string());
                 } else {
-                    let callee = map_expr(children[0], ctx)?;
+                    let callee = map_expr(children[0])?;
                     let args = children
                         .into_iter()
                         .skip(1)
-                        .map(|e| map_expr(e, ctx))
+                        .map(|e| map_expr(e))
                         .collect::<Result<Vec<CExpr>, String>>()?;
 
                     CExpr::Call(Box::new(CCallExpr { callee, args }))
@@ -102,7 +101,7 @@ pub unsafe fn map_expr(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CExpr<'st
             CXCursor_MemberRefExpr => {
                 let member = get_identifier(cursor)?;
                 let [raw_obj] = get_children_n::<1>(cursor)?;
-                let obj = map_expr(raw_obj, ctx)?;
+                let obj = map_expr(raw_obj)?;
 
                 CExpr::Member(Box::new(CMemberExpr { obj, member }))
             }
@@ -124,7 +123,7 @@ pub unsafe fn map_expr(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CExpr<'st
                 };
 
                 let [child] = get_children_n(cursor)?;
-                let expr = map_expr(child, ctx)?;
+                let expr = map_expr(child)?;
 
                 op_code.either_with(
                     expr,
@@ -188,9 +187,9 @@ pub unsafe fn map_expr(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CExpr<'st
             CXCursor_CStyleCastExpr => {
                 let [casted] = get_children_n::<1>(cursor)?;
                 let ty = clang_getCursorType(cursor);
-                let cty = map_ty(ty, ctx)?;
+                let cty = map_ty(ty)?;
 
-                let mapped = map_expr(casted, ctx)?;
+                let mapped = map_expr(casted)?;
 
                 CExpr::Cast(Box::new(CCastExpr {
                     expr: mapped,
@@ -239,8 +238,8 @@ pub unsafe fn map_expr(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CExpr<'st
 
                 let [raw_lhs, raw_rhs] = get_children_n(cursor)?;
 
-                let lhs = map_expr(raw_lhs, ctx)?;
-                let rhs = map_expr(raw_rhs, ctx)?;
+                let lhs = map_expr(raw_lhs)?;
+                let rhs = map_expr(raw_rhs)?;
 
                 CExpr::Binary(Box::new(CBinaryExpr {
                     op: op_code,
@@ -252,9 +251,9 @@ pub unsafe fn map_expr(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CExpr<'st
             CXCursor_ConditionalOperator => {
                 let [raw_cond, raw_then, raw_otherwise] = get_children_n(cursor)?;
 
-                let cond = map_expr(raw_cond, ctx)?;
-                let then = map_expr(raw_then, ctx)?;
-                let otherwise = map_expr(raw_otherwise, ctx)?;
+                let cond = map_expr(raw_cond)?;
+                let then = map_expr(raw_then)?;
+                let otherwise = map_expr(raw_otherwise)?;
 
                 CExpr::Conditional(Box::new(CConditionalExpr {
                     cond,
@@ -264,7 +263,7 @@ pub unsafe fn map_expr(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CExpr<'st
             }
             CXCursor_ParenExpr => {
                 let [child] = get_children_n(cursor)?;
-                let expr = map_expr(child, ctx)?;
+                let expr = map_expr(child)?;
 
                 CExpr::Paren(Box::new(CParenExpr { expr }))
             }
@@ -283,7 +282,7 @@ pub unsafe fn map_expr(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CExpr<'st
                 );
 
                 let [child] = get_children_n(cursor)?;
-                map_expr(child, ctx)?
+                map_expr(child)?
             }
             _ => {
                 let cs = clang_getCursorKindSpelling(cursor_kind);

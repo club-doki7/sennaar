@@ -3,12 +3,12 @@ use either::Either;
 
 use crate::{
     Internalize, cpl::*, registry, rossetta::{
-        clang_ctx::ClangCtx, clang_ty::*, clang_utils::*
+        clang_ty::*, clang_utils::*
     }
 };
 
 #[allow(non_upper_case_globals)]
-pub unsafe fn map_decl(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CDecl, ClangError> {
+pub unsafe fn map_decl(cursor: CXCursor) -> Result<CDecl, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         // don't use get_cursor_display / clang_getCursorDisplayName, it includes some extra information.
@@ -16,7 +16,7 @@ pub unsafe fn map_decl(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CDecl, Cl
 
         let decl = match kind {
             CXCursor_TypedefDecl => {
-                let underlying  = map_ty(clang_getTypedefDeclUnderlyingType(cursor), ctx)?;
+                let underlying  = map_ty(clang_getTypedefDeclUnderlyingType(cursor))?;
 
                 CDecl::Typedef(Box::new(CTypedefDecl {
                     name: name.interned(),
@@ -26,11 +26,11 @@ pub unsafe fn map_decl(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CDecl, Cl
 
             CXCursor_FunctionDecl => {
                 // not sure if this differ to ParmDecl nodes
-                let cty = map_cursor_ty(cursor, ctx)?;
+                let cty = map_cursor_ty(cursor)?;
                 let parameters = get_children(cursor)
                     .into_iter()
                     .filter(|e| get_kind(*e) == CXCursor_ParmDecl)
-                    .map(|e| map_param(e, ctx))
+                    .map(|e| map_param(e))
                     .collect::<Result<Vec<CParamDecl>, ClangError>>()?;
                 if let CBaseType::FunProto(ret, _) = cty.ty {
                     CDecl::Fn(Box::new(CFnDecl {
@@ -48,16 +48,13 @@ pub unsafe fn map_decl(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CDecl, Cl
                 let name = if has_name {
                     Either::Left(name.interned())
                 } else {
-                    let usr = cursor.get_usr()?;
-                    println!("FUCK ME");
-
-                    Either::Right(usr)
+                    Either::Right(cursor.get_usr()?)
                 };
 
                 let children = get_children(cursor);
                 let fields = children
                     .into_iter()
-                    .map(|e| map_field(e, ctx))
+                    .map(|e| map_field(e))
                     .collect::<Result<Vec<CFieldDecl>, ClangError>>()?;
 
                 CDecl::Struct(Box::new(CStructDecl {
@@ -67,10 +64,10 @@ pub unsafe fn map_decl(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CDecl, Cl
 
             CXCursor_EnumDecl => {
                 let children = get_children(cursor);
-                let ty = map_cursor_ty(cursor, ctx)?;
+                let ty = map_cursor_ty(cursor)?;
                 let members = children
                     .into_iter()
-                    .map(|e| map_enum_const(e, ctx))
+                    .map(|e| map_enum_const(e))
                     .collect::<Result<Vec<CEnumConstantDecl>, ClangError>>()?;
 
                 CDecl::Enum(Box::new(CEnumDecl {
@@ -91,7 +88,7 @@ pub unsafe fn map_decl(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CDecl, Cl
     }
 }
 
-pub(crate) fn map_field(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CFieldDecl, ClangError> {
+pub(crate) fn map_field(cursor: CXCursor) -> Result<CFieldDecl, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         if kind != CXCursor_FieldDecl {
@@ -101,7 +98,7 @@ pub(crate) fn map_field(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CFieldDe
         }
 
         let name = get_cursor_display(cursor)?;
-        let ty = map_cursor_ty(cursor, ctx)?;
+        let ty = map_cursor_ty(cursor)?;
 
         Ok(CFieldDecl {
             name: name.interned(),
@@ -110,7 +107,7 @@ pub(crate) fn map_field(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CFieldDe
     }
 }
 
-pub(crate) fn map_enum_const(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CEnumConstantDecl, ClangError> {
+pub(crate) fn map_enum_const(cursor: CXCursor) -> Result<CEnumConstantDecl, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         if kind != CXCursor_EnumConstantDecl {
@@ -131,7 +128,7 @@ pub(crate) fn map_enum_const(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CEn
     }
 }
 
-pub(crate) fn map_param(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CParamDecl, ClangError> {
+pub(crate) fn map_param(cursor: CXCursor) -> Result<CParamDecl, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         if kind != CXCursor_ParmDecl {
@@ -140,7 +137,7 @@ pub(crate) fn map_param(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CParamDe
         }
 
         let name = get_cursor_spelling(cursor)?;
-        let ty = map_cursor_ty(cursor, ctx)?;
+        let ty = map_cursor_ty(cursor)?;
 
         Ok(CParamDecl {
             name: name.interned(),

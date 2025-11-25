@@ -2,20 +2,19 @@
 
 use clang_sys::*;
 
-use crate::rossetta::clang_ctx::ClangCtx;
 use crate::{Internalize, registry};
 use crate::cpl::{CBaseType, CPrimitive, CType};
 use crate::rossetta::clang_utils::*;
 
 // TODO: safety section??
-pub unsafe fn map_cursor_ty(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CType, ClangError> {
+pub unsafe fn map_cursor_ty(cursor: CXCursor) -> Result<CType, ClangError> {
     unsafe {
         let ty = clang_getCursorType(cursor);
-        map_ty(ty, ctx)
+        map_ty(ty)
     }
 }
 
-pub unsafe fn map_ty(ty: CXType, ctx: &mut ClangCtx) -> Result<CType, ClangError> {
+pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
     unsafe {
         let is_const = clang_isConstQualifiedType(ty) != 0;
 
@@ -26,7 +25,7 @@ pub unsafe fn map_ty(ty: CXType, ctx: &mut ClangCtx) -> Result<CType, ClangError
         let cty: CBaseType = match ty.kind {
             CXType_Pointer => {
                 let pointee = clang_getPointeeType(ty);
-                let mapped = map_ty(pointee, ctx)?;
+                let mapped = map_ty(pointee)?;
                 CBaseType::Pointer(Box::new(mapped))
             }
 
@@ -35,10 +34,10 @@ pub unsafe fn map_ty(ty: CXType, ctx: &mut ClangCtx) -> Result<CType, ClangError
                 let result = clang_getResultType(ty);
                 let params = get_parameters(ty);
 
-                let mapped_result = map_ty(result, ctx)?;
+                let mapped_result = map_ty(result)?;
                 let mapped_params = params
                     .into_iter()
-                    .map(|p| map_ty(p, ctx))
+                    .map(|p| map_ty(p))
                     .collect::<Result<Vec<CType>, String>>()?;
 
                 CBaseType::FunProto(Box::new(mapped_result), mapped_params)
@@ -47,7 +46,7 @@ pub unsafe fn map_ty(ty: CXType, ctx: &mut ClangCtx) -> Result<CType, ClangError
             // function with no parameters
             CXType_FunctionNoProto => {
                 let result = clang_getResultType(ty);
-                let mapped_result = map_ty(result, ctx)?;
+                let mapped_result = map_ty(result)?;
 
                 CBaseType::FunProto(Box::new(mapped_result), Vec::new())
             }
@@ -59,7 +58,7 @@ pub unsafe fn map_ty(ty: CXType, ctx: &mut ClangCtx) -> Result<CType, ClangError
                     unreachable!()
                 }
 
-                let mapped_element_ty = map_ty(element_ty, ctx)?;
+                let mapped_element_ty = map_ty(element_ty)?;
 
                 CBaseType::Array(Box::new(mapped_element_ty), Some(size as u64))
             }
@@ -67,7 +66,7 @@ pub unsafe fn map_ty(ty: CXType, ctx: &mut ClangCtx) -> Result<CType, ClangError
             CXType_IncompleteArray => {
                 // We can't handle `int arr[const]`, ty.is_const and element_ty.is_const are both false.
                 let element_ty = clang_getArrayElementType(ty);
-                let mapped = map_ty(element_ty, ctx)?;
+                let mapped = map_ty(element_ty)?;
                 // let size = clang_getArraySize(ty);
 
                 // println!("My const: {}", is_const);
@@ -82,7 +81,7 @@ pub unsafe fn map_ty(ty: CXType, ctx: &mut ClangCtx) -> Result<CType, ClangError
             CXType_Elaborated => {
                 let inner = clang_Type_getNamedType(ty);
                 // i guess `is_const` is always false
-                let mapped = map_ty(inner, ctx)?;
+                let mapped = map_ty(inner)?;
                 assert!(! mapped.is_const);
                 mapped.ty
             }
