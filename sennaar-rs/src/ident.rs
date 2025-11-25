@@ -66,12 +66,19 @@ impl Identifier {
             return Err("Renamed identifiers cannot contain ':'".to_string());
         }
 
-        self.0.renamed
-            .set(new_name.to_string())
-            .map_err(|_| format!(
-                "Cannot rename identifier '{}' to '{}': already renamed to '{}'",
-                self.0.original, new_name, self.0.renamed.get().unwrap()
-            ))
+        if let Some(current) = self.renamed() {
+            if current == new_name {
+                Ok(())
+            } else {
+                Err(format!(
+                    "Identifier '{}' is already renamed to '{}'",
+                    self.0.original, current
+                ))
+            }
+        } else {
+            let r = self.0.renamed.set(new_name.to_string());
+            Ok(unsafe { r.unwrap_unchecked() })
+        }
     }
 
     pub fn rename(&self, new_name: &str) {
