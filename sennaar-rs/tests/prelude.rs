@@ -75,7 +75,7 @@ pub fn error(err: String, e: CXCursor) -> ! {
         );
 
         panic!(
-            "Failed to map nodes of cursor[{}({})]: {}({}, {})-{}({}, {}) with {}",
+            "Operation failed on cursor[{}({})]: {}({}, {})-{}({}, {}) with {}",
             kind_display,
             cursor_kind,
             start_offset,

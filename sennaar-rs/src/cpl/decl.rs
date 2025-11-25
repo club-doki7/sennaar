@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use either::Either;
+
 use crate::{
     Identifier,
     cpl::{CParamLike, CType},
@@ -34,7 +36,8 @@ pub struct CParamDecl {
 
 #[derive(Debug)]
 pub struct CStructDecl {
-    pub name: Identifier,
+    /// either a named struct or a unnamed struct with its USR in [ClangCtx]
+    pub name: Either<Identifier, String>,
     pub fields: Vec<CFieldDecl>,
 }
 
@@ -72,5 +75,61 @@ impl CParamLike for CParamDecl {
 
     fn ty(&self) -> &CType {
         &self.ty
+    }
+}
+
+impl Display for CDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CDecl::Typedef(decl) => {
+                write!(f, "typedef")?;
+                // TODO
+                Ok(())
+
+                // if decl.with_decl.is_some() {
+                //     write!(f, "'")?;
+                // }
+
+                // write!(f, " {} {};", decl.underlying, decl.name)
+            }
+            CDecl::Fn(decl) => {
+                CType::fmt_fun(f, &decl.ret, &decl.parameters, Some(&decl.name), false, false)?;
+
+                write!(f, ";")
+            }
+            CDecl::Struct(decl) => {
+                write!(f, "struct ")?;
+
+                match &decl.name {
+                    Either::Left(name) => write!(f, "{}", name)?,
+                    Either::Right(usr) => write!(f, "/* USR: {} */", usr)?,
+                }
+
+                write!(f, " {{")?;
+
+                decl.fields
+                    .iter()
+                    .try_for_each(|field| write!(f, " {} {};", field.ty, field.name))?;
+
+                write!(f, " }};")
+            }
+            CDecl::Enum(decl) => {
+                write!(f, "enum {} {{ ", decl.name)?;
+
+                for (idx, member) in decl.members.iter().enumerate() {
+                    if idx != 0 {
+                        write!(f, ", ")?;
+                    }
+
+                    if member.explicit {
+                        write!(f, "{} = {}", member.name, member.value)?;
+                    } else {
+                        write!(f, "{}", member.name)?;
+                    }
+                }
+
+                write!(f, " }};")
+            }
+        }
     }
 }

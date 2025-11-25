@@ -5,9 +5,7 @@ use std::{
 
 use clang_sys::*;
 use sennaar::rossetta::{
-    clang_expr::{self, map_expr},
-    clang_ty::{map_cursor_ty, map_ty},
-    clang_utils::{from_CXString, get_children, get_cursor_spelling, is_expression},
+    clang_ctx::ClangCtx, clang_expr::{self, map_expr}, clang_ty::{map_cursor_ty, map_ty}, clang_utils::{CXStringToString, from_CXString, get_children, get_cursor_spelling, is_expression}
 };
 
 mod prelude;
@@ -19,10 +17,11 @@ use prelude::*;
 fn traversal() {
     unsafe {
         let cursor = test_resource();
+        let mut ctx = ClangCtx::new();
         clang_visitChildren(
             cursor,
             visitor,
-            ((&mut ClientData { level: 0 }) as *mut ClientData).cast(),
+            ((&mut ClientData { level: 0, ctx }) as *mut ClientData).cast(),
         );
     }
 }
@@ -30,24 +29,14 @@ fn traversal() {
 #[test]
 fn real_test_with_assertion() {
     unsafe {
-        let index = clang_sys::clang_createIndex(0, 0);
-        let unit = clang_sys::clang_parseTranslationUnit(
-            index,
-            c"./tests/resources/sample.c".as_ptr(),
-            null(),
-            0,
-            null_mut(),
-            0,
-            CXTranslationUnit_DetailedPreprocessingRecord,
-        );
-
-        let cursor = clang_getTranslationUnitCursor(unit);
+        let cursor = test_resource();
+        let mut ctx = ClangCtx::new();
 
         let fn_foo = find_fn(cursor, "foo");
         let actual = get_children(fn_foo)
             .into_iter()
             .filter(|c| is_expression(*c))
-            .map(|e| format!("{}", map_expr(e).unwrap_or_else(|err| error(err, e))))
+            .map(|e| format!("{}", map_expr(e, &mut ctx).unwrap_or_else(|err| error(err, e))))
             .collect::<Vec<String>>();
 
         let expected = vec![
@@ -81,14 +70,16 @@ fn real_test_with_assertion() {
 
 struct ClientData {
     level: u32,
+    ctx: ClangCtx
 }
 
 // traversal the ast
 #[allow(non_upper_case_globals)]
 extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVisitResult {
     unsafe {
-        let client_data = &*(data as *mut ClientData);
+        let client_data = &mut *(data as *mut ClientData);
         let level = client_data.level;
+        let ctx = &mut client_data.ctx;
 
         let cursor_kind = clang_getCursorKind(e);
 
@@ -98,37 +89,53 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVi
         println!("Visiting cursor: {}", s);
 
         if clang_isExpression(cursor_kind) != 0 {
-            let mapped = clang_expr::map_expr(e).unwrap_or_else(|err| error(err, e));
+            let mapped = clang_expr::map_expr(e, ctx).unwrap_or_else(|err| error(err, e));
 
             print_padding(level);
             println!("Expr: {}", mapped);
         } else {
-            let name = get_cursor_spelling(e).unwrap_or_error(e);
+            let usr = clang_getCursorUSR(e).try_to_string().unwrap_or_error(e);
+            println_with_padding!(level, "USR: {}", usr);
+            let anonymous = clang_Cursor_isAnonymous(e) != 0;
+            let name = if cursor_kind == CXCursor_StructDecl && anonymous {
+                "unnamed".to_string()
+            } else {
+                get_cursor_spelling(e).unwrap_or_error(e)
+            };
 
             match cursor_kind {
                 CXCursor_FunctionDecl => {
                     let ty = clang_getCursorType(e);
-                    let cty = map_ty(ty).unwrap_or_error(e);
+                    let cty = map_ty(ty, ctx).unwrap_or_error(e);
 
                     println_with_padding!(level, "Function Name: {}", name);
                     println_with_padding!(level, "Function Type: {}", cty);
                 }
 
                 CXCursor_ParmDecl => {
-                    let cty = map_cursor_ty(e).unwrap_or_error(e);
+                    let cty = map_cursor_ty(e, ctx).unwrap_or_error(e);
                     println_with_padding!(level, "Param Name: {}", name);
                     println_with_padding!(level, "Param Type: {}", cty);
                 }
 
                 CXCursor_TypedefDecl => {
+                    println_with_padding!(level, "Typedef Name: {}", name);
+
                     // this is the typedef itself, i.e. `bar` in `typedef foo bar`
                     // let ty = clang_getCursorType(e);
                     // let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
                     let underlying = clang_getTypedefDeclUnderlyingType(e);
-                    let cunderlying = map_ty(underlying).unwrap_or_error(e);
+                    // make sure underlying is not unnamed, i really don't want to handle this case
+                    let decl = clang_getTypeDeclaration(underlying);
+                    let underlying_anonymous = clang_Cursor_isAnonymous(decl) != 0;
 
-                    println_with_padding!(level, "Typedef Name: {}", name);
-                    println_with_padding!(level, "Typedef Underlying: {}", cunderlying);
+                    if ! underlying_anonymous {
+                        println!("FUCK {}", underlying_anonymous);
+                        let cunderlying = map_ty(underlying, ctx).unwrap_or_error(e);   
+                        println_with_padding!(level, "Typedef Underlying: {}", cunderlying);
+                    } else {
+                        println_with_padding!(level, "Typedef Underlying: ANONYMOUS");
+                    }
                 }
 
                 CXCursor_StructDecl => {
@@ -136,14 +143,14 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVi
                 }
 
                 CXCursor_FieldDecl => {
-                    let ty = map_cursor_ty(e).unwrap_or_error(e);
+                    let ty = map_cursor_ty(e, ctx).unwrap_or_error(e);
                     println_with_padding!(level, "Field Name: {}", name);
                     println_with_padding!(level, "Field Type: {}", ty);
                 }
 
                 CXCursor_EnumDecl => {
                     let ty = clang_getEnumDeclIntegerType(e);
-                    let cty = map_ty(ty).unwrap_or_error(e);
+                    let cty = map_ty(ty, ctx).unwrap_or_error(e);
 
                     println_with_padding!(level, "Enum Name: {}", name);
                     println_with_padding!(level, "Enum Type: {}", cty);
@@ -159,11 +166,15 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVi
                 _ => {}
             }
 
+            client_data.level = level + 1;
+
             clang_visitChildren(
                 e,
                 visitor,
-                ((&mut ClientData { level: level + 1 }) as *mut ClientData).cast(),
+                data,
             );
+
+            client_data.level = level;
         }
 
         CXChildVisit_Continue

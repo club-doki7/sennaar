@@ -1,16 +1,14 @@
-use std::fmt::Display;
-
 use clang_sys::*;
+use either::Either;
 
 use crate::{
-    Internalize, cpl::*, rossetta::{
-        clang_ty::*,
-        clang_utils::*,
+    Internalize, cpl::*, registry, rossetta::{
+        clang_ctx::ClangCtx, clang_ty::*, clang_utils::*
     }
 };
 
 #[allow(non_upper_case_globals)]
-pub unsafe fn map_decl(cursor: CXCursor) -> Result<CDecl, ClangError> {
+pub unsafe fn map_decl(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CDecl, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         // don't use get_cursor_display / clang_getCursorDisplayName, it includes some extra information.
@@ -18,20 +16,29 @@ pub unsafe fn map_decl(cursor: CXCursor) -> Result<CDecl, ClangError> {
 
         let decl = match kind {
             CXCursor_TypedefDecl => {
-                let underlying = clang_getTypedefDeclUnderlyingType(cursor);
+                let child = first_children(cursor);
+                let underlying = if let Some(child) = child 
+                    // TODO: maybe also enum
+                    && get_kind(child) == CXCursor_StructDecl { 
+                        either::Either::Right(map_decl(child, ctx)?)
+                    } else { 
+                        let underlying = clang_getTypedefDeclUnderlyingType(cursor);
+                        either::Either::Left(map_ty(underlying, ctx)?)
+                    };
+
                 CDecl::Typedef(Box::new(CTypedefDecl {
                     name: name.interned(),
-                    underlying: map_ty(underlying)?,
+                    underlying,
                 }))
             }
 
             CXCursor_FunctionDecl => {
                 // not sure if this differ to ParmDecl nodes
-                let cty = map_cursor_ty(cursor)?;
+                let cty = map_cursor_ty(cursor, ctx)?;
                 let parameters = get_children(cursor)
                     .into_iter()
                     .filter(|e| get_kind(*e) == CXCursor_ParmDecl)
-                    .map(map_param)
+                    .map(|e| map_param(e, ctx))
                     .collect::<Result<Vec<CParamDecl>, ClangError>>()?;
                 if let CBaseType::FunProto(ret, _) = cty.ty {
                     CDecl::Fn(Box::new(CFnDecl {
@@ -45,24 +52,33 @@ pub unsafe fn map_decl(cursor: CXCursor) -> Result<CDecl, ClangError> {
             }
 
             CXCursor_StructDecl => {
+                let has_name = ! cursor.is_anonymous();
+                let name = if has_name {
+                    Either::Left(name.interned())
+                } else {
+                    let usr = cursor.get_usr()?;
+                    println!("FUCK ME");
+
+                    Either::Right(usr)
+                };
+
                 let children = get_children(cursor);
                 let fields = children
                     .into_iter()
-                    .map(map_field)
+                    .map(|e| map_field(e, ctx))
                     .collect::<Result<Vec<CFieldDecl>, ClangError>>()?;
 
                 CDecl::Struct(Box::new(CStructDecl {
-                    name: name.interned(),
-                    fields,
+                    name, fields,
                 }))
             }
 
             CXCursor_EnumDecl => {
                 let children = get_children(cursor);
-                let ty = map_cursor_ty(cursor)?;
+                let ty = map_cursor_ty(cursor, ctx)?;
                 let members = children
                     .into_iter()
-                    .map(map_enum_const)
+                    .map(|e| map_enum_const(e, ctx))
                     .collect::<Result<Vec<CEnumConstantDecl>, ClangError>>()?;
 
                 CDecl::Enum(Box::new(CEnumDecl {
@@ -83,7 +99,7 @@ pub unsafe fn map_decl(cursor: CXCursor) -> Result<CDecl, ClangError> {
     }
 }
 
-pub(crate) fn map_field(cursor: CXCursor) -> Result<CFieldDecl, ClangError> {
+pub(crate) fn map_field(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CFieldDecl, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         if kind != CXCursor_FieldDecl {
@@ -93,7 +109,7 @@ pub(crate) fn map_field(cursor: CXCursor) -> Result<CFieldDecl, ClangError> {
         }
 
         let name = get_cursor_display(cursor)?;
-        let ty = map_cursor_ty(cursor)?;
+        let ty = map_cursor_ty(cursor, ctx)?;
 
         Ok(CFieldDecl {
             name: name.interned(),
@@ -102,7 +118,7 @@ pub(crate) fn map_field(cursor: CXCursor) -> Result<CFieldDecl, ClangError> {
     }
 }
 
-pub(crate) fn map_enum_const(cursor: CXCursor) -> Result<CEnumConstantDecl, ClangError> {
+pub(crate) fn map_enum_const(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CEnumConstantDecl, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         if kind != CXCursor_EnumConstantDecl {
@@ -123,7 +139,7 @@ pub(crate) fn map_enum_const(cursor: CXCursor) -> Result<CEnumConstantDecl, Clan
     }
 }
 
-pub(crate) fn map_param(cursor: CXCursor) -> Result<CParamDecl, ClangError> {
+pub(crate) fn map_param(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CParamDecl, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         if kind != CXCursor_ParmDecl {
@@ -132,7 +148,7 @@ pub(crate) fn map_param(cursor: CXCursor) -> Result<CParamDecl, ClangError> {
         }
 
         let name = get_cursor_spelling(cursor)?;
-        let ty = map_cursor_ty(cursor)?;
+        let ty = map_cursor_ty(cursor, ctx)?;
 
         Ok(CParamDecl {
             name: name.interned(),
@@ -141,43 +157,57 @@ pub(crate) fn map_param(cursor: CXCursor) -> Result<CParamDecl, ClangError> {
     }
 }
 
-impl Display for CDecl {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CDecl::Typedef(decl) => {
-                write!(f, "typedef {} {};", decl.underlying, decl.name)
-            }
-            CDecl::Fn(decl) => {
-                CType::fmt_fun(f, &decl.ret, &decl.parameters, Some(&decl.name), false, false)?;
+pub fn entitilize_decl<'de>(registry: &mut registry::RegistryBase, decl: &CDecl) -> Option<()> {
+    match &decl {
+        CDecl::Typedef(typedef) => {
+            // match &typedef.underlying.ty {
+            //     CBaseType::Pointer(ptr) => {
+            //         match &ptr.ty {
+            //             CBaseType::FunProto(ret, params) => {
+            //                 // typedef void (*foo)(...)
+            //                 let def = registry::FunctionTypedef::new(
+            //                     typedef.name.clone(), 
+            //                     todo!(), 
+            //                     to_cpl_type(&ret)?,
+            //                     true, 
+            //                     false       // TODO: i don't know
+            //                 );
 
-                write!(f, ";")
-            }
-            CDecl::Struct(decl) => {
-                write!(f, "struct {} {{ ", decl.name)?;
+            //                 registry.function_typedefs.insert(def.name.clone(), def);
+            //                 return Some(())
+            //             }
 
-                decl.fields
-                    .iter()
-                    .try_for_each(|field| write!(f, "{} {};", field.ty, field.name))?;
+            //             CBaseType::Struct(ident) => {
+            //                 todo!();
+            //                 // typedef struct _Foo * Foo
+            //                 // this is a opaque handle typedef
+            //                 return Some(())
+            //             }
 
-                write!(f, " }};")
-            }
-            CDecl::Enum(decl) => {
-                write!(f, "enum {} {{ ", decl.name)?;
+            //             _ => {}
+            //         }
+            //     }
 
-                for (idx, member) in decl.members.iter().enumerate() {
-                    if idx != 0 {
-                        write!(f, ", ")?;
-                    }
+            //     CBaseType::Struct(ident) if ident == &typedef.name => {
+            //         // typedef struct Foo Foo;
+            //     }
 
-                    if member.explicit {
-                        write!(f, "{} = {}", member.name, member.value)?;
-                    } else {
-                        write!(f, "{}", member.name)?;
-                    }
-                }
-
-                write!(f, " }};")
-            }
+            //     _ => {
+            //         let def = registry::Typedef::new(
+            //             typedef.name.clone(), to_cpl_type(&typedef.underlying)?
+            //         );
+            //     }
+            // }
+            todo!()
         }
+        CDecl::Fn(decl) => {
+            registry::Command::new(
+                decl.name.clone(), todo!(), todo!(), todo!(), todo!(), todo!()
+            );
+        },
+        CDecl::Struct(cstruct_decl) => todo!(),
+        CDecl::Enum(cenum_decl) => todo!(),
     }
+
+    Some(())
 }

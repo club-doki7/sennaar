@@ -12,6 +12,18 @@ macro_rules! entity {
             $(pub $field: $type),*
         }
 
+        impl $(<$lifetime>)? $name$(<$lifetime>)? {
+            pub fn new(name: crate::Identifier, $($field: $type),*) -> $name$(<$lifetime>)? {
+                $name {
+                    name,
+                    metadata: HashMap::new(),
+                    doc: Vec::new(),
+                    platform: Option::None,
+                    $($field),*
+                }
+            }
+        }
+
         impl<'de $(,$lifetime)?> Entity<'de> for $name$(<$lifetime>)? {
             fn entity_metadata(&self) -> &HashMap<String, Metadata> {
                 &self.metadata

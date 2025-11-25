@@ -30,12 +30,52 @@ impl CXStringToString for CXString {
     }
 }
 
+pub trait CXCursorExtension {
+    fn kind(self) -> CXCursorKind;
+    fn get_children(self) -> Vec<CXCursor>;
+    fn get_display(self) -> Result<String, ClangError>;
+    fn get_spelling(self) -> Result<String, ClangError>;
+    fn is_anonymous(self) -> bool;
+    fn get_usr(self) -> Result<String, ClangError>;
+}
+
+impl CXCursorExtension for CXCursor {
+    fn kind(self) -> CXCursorKind {
+        get_kind(self)
+    }
+
+    fn get_children(self) -> Vec<CXCursor> {
+        get_children(self)
+    }
+
+    fn get_display(self) -> Result<String, ClangError> {
+        get_cursor_display(self)
+    }
+
+    fn get_spelling(self) -> Result<String, ClangError> {
+        get_cursor_spelling(self)
+    }
+
+    fn is_anonymous(self) -> bool {
+        unsafe {
+            clang_Cursor_isAnonymous(self) != 0
+        }
+    }
+
+    fn get_usr(self) -> Result<String, ClangError> {
+        unsafe {
+            clang_getCursorUSR(self).try_to_string()
+        }
+    }
+}
+
 pub fn get_cursor_display(cursor: CXCursor) -> Result<String, ClangError> {
     unsafe {
         clang_getCursorDisplayName(cursor).try_to_string()
     }
 }
 
+// TODO: check if clang_Curosr_isAnnonymous ?
 pub fn get_cursor_spelling(cursor: CXCursor) -> Result<String, ClangError> {
     unsafe {
         clang_getCursorSpelling(cursor).try_to_string()

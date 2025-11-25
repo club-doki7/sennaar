@@ -12,6 +12,33 @@ struct Foo {
 
 typedef unsigned long long ull;
 
+typedef struct _what * what_handle;
+typedef struct how * how;
+
+typedef void (*MAIN)(int, char**);
+
+typedef struct Wrap {
+  int value;
+} Wrap;
+
+
+typedef struct {
+  int walue;
+} Wrap2, *Wrap3;
+
+typedef struct {
+  int ualue;
+} Wrap4;
+
+struct {
+  int yalue;
+};
+
+typedef struct {
+  int xalue;
+} *Wrap5;
+
+
 void foo(int a, int b) {
   int arr[5];
   // comment to make CI happy, uncomment to test sizeof

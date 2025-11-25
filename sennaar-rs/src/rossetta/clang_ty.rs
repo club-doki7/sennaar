@@ -2,19 +2,20 @@
 
 use clang_sys::*;
 
-use crate::Internalize;
-use crate::cpl::{CBaseType, CSign, CType};
+use crate::rossetta::clang_ctx::ClangCtx;
+use crate::{Internalize, registry};
+use crate::cpl::{CBaseType, CPrimitive, CType};
 use crate::rossetta::clang_utils::*;
 
 // TODO: safety section??
-pub unsafe fn map_cursor_ty(cursor: CXCursor) -> Result<CType, ClangError> {
+pub unsafe fn map_cursor_ty(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CType, ClangError> {
     unsafe {
         let ty = clang_getCursorType(cursor);
-        map_ty(ty)
+        map_ty(ty, ctx)
     }
 }
 
-pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
+pub unsafe fn map_ty(ty: CXType, ctx: &mut ClangCtx) -> Result<CType, ClangError> {
     unsafe {
         let is_const = clang_isConstQualifiedType(ty) != 0;
 
@@ -25,7 +26,7 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
         let cty: CBaseType = match ty.kind {
             CXType_Pointer => {
                 let pointee = clang_getPointeeType(ty);
-                let mapped = map_ty(pointee)?;
+                let mapped = map_ty(pointee, ctx)?;
                 CBaseType::Pointer(Box::new(mapped))
             }
 
@@ -34,10 +35,10 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 let result = clang_getResultType(ty);
                 let params = get_parameters(ty);
 
-                let mapped_result = map_ty(result)?;
+                let mapped_result = map_ty(result, ctx)?;
                 let mapped_params = params
                     .into_iter()
-                    .map(|p| map_ty(p))
+                    .map(|p| map_ty(p, ctx))
                     .collect::<Result<Vec<CType>, String>>()?;
 
                 CBaseType::FunProto(Box::new(mapped_result), mapped_params)
@@ -46,7 +47,7 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
             // function with no parameters
             CXType_FunctionNoProto => {
                 let result = clang_getResultType(ty);
-                let mapped_result = map_ty(result)?;
+                let mapped_result = map_ty(result, ctx)?;
 
                 CBaseType::FunProto(Box::new(mapped_result), Vec::new())
             }
@@ -58,15 +59,15 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                     unreachable!()
                 }
 
-                let mapped_element_ty = map_ty(element_ty)?;
+                let mapped_element_ty = map_ty(element_ty, ctx)?;
 
-                CBaseType::Array(Box::new(mapped_element_ty), size as u64)
+                CBaseType::Array(Box::new(mapped_element_ty), Some(size as u64))
             }
 
             CXType_IncompleteArray => {
                 // We can't handle `int arr[const]`, ty.is_const and element_ty.is_const are both false.
                 let element_ty = clang_getArrayElementType(ty);
-                let mapped = map_ty(element_ty)?;
+                let mapped = map_ty(element_ty, ctx)?;
                 let size = clang_getArraySize(ty);
 
                 println!("My const: {}", is_const);
@@ -74,14 +75,14 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 println!("My element const 2: {}", clang_isConstQualifiedType(clang_getElementType(ty)) != 0);
                 println!("My size: {}", size);
 
-                CBaseType::Pointer(Box::new(mapped))
+                CBaseType::Array(Box::new(mapped), None)
             }
 
             // struct Foo/enum Bar/typedef things
             CXType_Elaborated => {
                 let inner = clang_Type_getNamedType(ty);
                 // i guess `is_const` is always false
-                let mapped = map_ty(inner)?;
+                let mapped = map_ty(inner, ctx)?;
                 assert!(! mapped.is_const);
                 mapped.ty
             }
@@ -93,14 +94,23 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
             }
 
             CXType_Record => {
-                // dont think this works
-                // FIXME: doesn't work, removing leading 'struct '
-                let raw_name = clang_getTypeSpelling(ty);
-                let name_with_struct = from_CXString(raw_name)?;
-                if let Some(name) = name_with_struct.strip_prefix("struct ") {
-                    CBaseType::Struct(name.interned())
-                } else {
-                    unreachable!();
+                let decl = clang_getTypeDeclaration(ty);
+                // TODO: not sure if decl will be invalid
+                assert!(clang_isInvalid(decl.kind()) == 0);
+
+                if decl.is_anonymous() {
+                    // if the referenced struct is anonymous, we use usr
+                    CBaseType::UnnamedStruct(decl.get_usr()?)
+                } else {   
+                    let raw_name = clang_getTypeSpelling(ty);
+                    let name_with_struct = from_CXString(raw_name)?;
+                    if let Some(name) = name_with_struct.strip_prefix("struct ") {
+                        CBaseType::Struct(name.interned())
+                    } else {
+                        // this is possible that a record doesnt start with "struct ", like the use of `Foo` in `struct { ... } Foo`
+                        assert!(! name_with_struct.is_empty());
+                        CBaseType::Struct(name_with_struct.interned())
+                    }
                 }
             }
 
@@ -110,6 +120,7 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 if let Some(name) = name_with_enum.strip_prefix("enum ") {
                     CBaseType::Enum(name.interned())
                 } else {
+                    // TODO: so this case is also reachable like struct?
                     unreachable!();
                 }
             }
@@ -132,35 +143,52 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
 }
 
 fn try_map_primitive(ty: CXType) -> Option<CBaseType> {
-    let ident = match ty.kind {
-        CXType_Void => "void",
-        CXType_Bool => "bool", // ??
-        CXType_UChar | CXType_Char_S | CXType_SChar => "char",
-        CXType_UShort | CXType_Short => "short",
-        CXType_UInt | CXType_Int => "int",
-        CXType_ULong | CXType_Long => "long",
-        CXType_ULongLong | CXType_LongLong => "long long",
-        CXType_Float => "float",
-        CXType_Double => "double",
-        CXType_LongDouble => "long double",
+    let primitive = match ty.kind {
+        CXType_Void => CPrimitive::Void,
+        CXType_Bool => CPrimitive::Bool,
+        CXType_UChar => CPrimitive::UChar,
+        CXType_Char_S => CPrimitive::CharS,
+        CXType_SChar => CPrimitive::SChar,
+        CXType_UShort => CPrimitive::UShort,
+        CXType_Short => CPrimitive::Short,
+        CXType_UInt => CPrimitive::UInt,
+        CXType_Int => CPrimitive::Int,
+        CXType_ULong => CPrimitive::ULong,
+        CXType_Long => CPrimitive::Long,
+        CXType_ULongLong => CPrimitive::ULongLong,
+        CXType_LongLong => CPrimitive::LongLong,
+        CXType_Float => CPrimitive::Float,
+        CXType_Double => CPrimitive::Double,
+        CXType_LongDouble => CPrimitive::LongDouble,
         _ => return None,
     };
 
-    let sign = map_primitive_sign(ty);
-
-    Some(CBaseType::Primitive {
-        signed: sign,
-        ident: ident.interned(),
-    })
+    Some(CBaseType::Primitive(primitive))
 }
 
-/// If the sign is determined by the type (such as uint128), the implementation should return `CSign::Signed`
-fn map_primitive_sign(ty: CXType) -> CSign {
-    match ty.kind {
-        CXType_UChar | CXType_UShort | CXType_UInt | CXType_ULong | CXType_ULongLong => {
-            CSign::Unsigned
-        }
-        CXType_SChar => CSign::ExplicitSigned,
-        _ => CSign::Signed,
-    }
+/// @return None when [cty] contains [FunProto].
+pub fn to_cpl_type(cty: &CType) -> Option<registry::Type<'static>> {
+    let ty = match &cty.ty {
+        CBaseType::Primitive(primitive) => registry::Type::identifier(format!("{}", primitive).interned()),
+        CBaseType::Array(element_type, len) => registry::Type::ArrayType(Box::new(registry::ArrayType {
+            element: to_cpl_type(&element_type)?,
+            length: todo!(),    // TODO: length
+            is_const: cty.is_const,
+        })),
+        CBaseType::Pointer(inner) => {
+            registry::Type::PointerType(Box::new(registry::PointerType {
+                pointee: to_cpl_type(&inner)?,
+                is_const: cty.is_const,
+                pointer_to_one: false,      // ??
+                nullable: false,    // ??
+            }))
+        },
+        CBaseType::FunProto(_, _) => return None,
+        CBaseType::Struct(identifier) => registry::Type::identifier(identifier.clone()),
+        CBaseType::UnnamedStruct(what) => todo!(),
+        CBaseType::Enum(identifier) => registry::Type::identifier(identifier.clone()),
+        CBaseType::Typedef(identifier) => registry::Type::identifier(identifier.clone()),
+    };
+
+    Some(ty)
 }

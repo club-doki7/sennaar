@@ -183,7 +183,7 @@ pub trait Internalize {
 
 impl Internalize for str {
     fn interned(&self) -> Identifier {
-        assert!(!self.contains(':'), "Identifiers cannot contain ':'");
+        assert!(!self.contains(':'), "Identifiers cannot contain ':' in {}", self);
 
         IDENTIFIERS.with(|renames| {
             let mut renames = renames.borrow_mut();

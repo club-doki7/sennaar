@@ -16,12 +16,61 @@ pub struct CType {
 }
 
 #[derive(Debug)]
+pub enum CPrimitive {
+    Void, Bool, UChar, CharS, SChar, UShort, Short, UInt, Int, ULong, Long, ULongLong, LongLong, Float, Double, LongDouble
+}
+
+impl CPrimitive {
+    fn sign(&self) -> Option<CSign> {
+        match &self {
+            CPrimitive::UChar | CPrimitive::UShort | CPrimitive::UInt | CPrimitive::ULong | CPrimitive::ULongLong => Some(CSign::Unsigned),
+            CPrimitive::SChar => Some(CSign::ExplicitSigned),
+            CPrimitive::Void | CPrimitive::Bool | CPrimitive::Float | CPrimitive::Double | CPrimitive::LongDouble => None,
+            _ => Some(CSign::Signed),
+        }
+    }
+
+    /// return the type name of this primitive type, without any signed/unsigned qualifier
+    fn type_name(&self) -> &'static str {
+        match &self {
+            CPrimitive::Void => "void",
+            CPrimitive::Bool => "bool",
+            CPrimitive::UChar | CPrimitive::CharS | CPrimitive::SChar => "char",
+            CPrimitive::UShort | CPrimitive::Short => "short",
+            CPrimitive::UInt | CPrimitive::Int => "int",
+            CPrimitive::ULong | CPrimitive::Long => "long",
+            CPrimitive::ULongLong | CPrimitive::LongLong => "long long",
+            CPrimitive::Float => "float",
+            CPrimitive::Double => "double",
+            CPrimitive::LongDouble => "long double",
+        }
+    }
+}
+
+impl Display for CPrimitive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let sign = self.sign();
+        if let Some(sign) = sign {
+            match sign {
+                CSign::Signed => {},
+                CSign::ExplicitSigned => write!(f, "signed ")?,
+                CSign::Unsigned => write!(f, "unsigned ")?,
+            }
+        }
+
+        write!(f, "{}", self.type_name())
+    }
+}
+
+#[derive(Debug)]
 pub enum CBaseType {
-    Primitive { signed: CSign, ident: Identifier },
-    Array(Box<CType>, u64),
+    Primitive(CPrimitive),
+    Array(Box<CType>, Option<u64>),
     Pointer(Box<CType>),
     FunProto(Box<CType>, Vec<CType>),
     Struct(Identifier),
+    /// a USR in [ClangCtx]
+    UnnamedStruct(String),
     Enum(Identifier),
     Typedef(Identifier),
 }
@@ -65,20 +114,6 @@ impl CType {
             is_const: false,
             ty
         }
-    }
-
-    pub fn signed(ident: Identifier) -> CType {
-        CType::unkonst(CBaseType::Primitive {
-            signed: CSign::Signed,
-            ident,
-        })
-    }
-
-    pub fn unsigned(ident: Identifier) -> CType {
-        CType::unkonst(CBaseType::Primitive {
-            signed: CSign::Unsigned,
-            ident,
-        })
     }
 
     /// @param ptr only used when `name` is not [None]
@@ -136,12 +171,19 @@ impl Display for CType {
         }
 
         match &self.ty {
-            CBaseType::Primitive { signed, ident } => match *signed {
-                CSign::Signed => write!(f, "{}", ident),
-                CSign::ExplicitSigned => write!(f, "signed {}", ident),
-                CSign::Unsigned => write!(f, "unsigned {}", ident),
+            CBaseType::Primitive(primitive) => primitive.fmt(f),
+            CBaseType::Array(ctype, size) => {
+                write!(f, "{}[", ctype)?;
+
+                if let Some(size) = size {
+                    write!(f, "{}", size)?;
+                } else if self.is_const {
+                    // i guess `else if` is okay..
+                    write!(f, "const")?;
+                }
+
+                write!(f, "]")
             },
-            CBaseType::Array(ctype, size) => write!(f, "{}[{}]", ctype, size),
             CBaseType::Pointer(inner) => match &inner.ty {
                 CBaseType::FunProto(ret, params) => {
                     CType::fmt_fun(f, ret, params, Some(&"".interned()), true, self.is_const)
@@ -160,6 +202,7 @@ impl Display for CType {
             CBaseType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, None, false, false),
             CBaseType::Typedef(ident) => write!(f, "{}", ident),
             CBaseType::Struct(ident) => write!(f, "struct {}", ident),
+            CBaseType::UnnamedStruct(usr) => write!(f, "struct <USR: {}>", usr),
             CBaseType::Enum(ident) => write!(f, "enum {}", ident),
         }
     }

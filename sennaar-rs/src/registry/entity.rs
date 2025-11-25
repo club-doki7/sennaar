@@ -7,6 +7,11 @@ use crate::cpl::CExpr;
 use crate::registry::{Metadata, Type};
 use crate::Identifier;
 
+pub enum Entities<'de> {
+    Typedef(Typedef<'de>),
+    FunctionTypedef(FunctionTypedef<'de>),
+    Command(Command<'de>),
+}
 
 pub trait Entity<'de> : Sized + Eq + Ord + Serialize + Deserialize<'de> {
     fn entity_metadata(&self) -> &HashMap<String, Metadata>;
