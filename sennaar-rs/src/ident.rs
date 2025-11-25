@@ -13,8 +13,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 
 struct IdentInternal {
-    original: String,
-    renamed: OnceCell<String>
+    original: Box<str>,
+    renamed: OnceCell<Box<str>>,
 }
 
 thread_local! {
@@ -58,7 +58,7 @@ impl Identifier {
     pub fn renamed<'a>(&'a self) -> Option<&'a str> {
         self.0.renamed
             .get()
-            .map(|s| s.as_str())
+            .map(|s| s.as_ref())
     }
 
     pub fn try_rename(&self, new_name: &str) -> Result<(), String> {
@@ -76,7 +76,7 @@ impl Identifier {
                 ))
             }
         } else {
-            let r = self.0.renamed.set(new_name.to_string());
+            let r = self.0.renamed.set(Box::from(new_name));
             Ok(unsafe { r.unwrap_unchecked() })
         }
     }
@@ -115,7 +115,6 @@ impl Ord for Identifier {
         }
 
         self.0.original.cmp(&other.0.original)
-            .then(self_addr.cmp(&other_addr))
     }
 }
 
@@ -185,7 +184,7 @@ impl Internalize for str {
                 state.clone()
             } else {
                 let state = Rc::new(IdentInternal {
-                    original: self.to_string(),
+                    original: Box::from(self),
                     renamed: OnceCell::new(),
                 });
                 renames.insert(self.to_string(), state.clone());
