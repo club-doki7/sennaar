@@ -18,17 +18,7 @@ use prelude::*;
 #[test]
 fn traversal() {
     unsafe {
-        let index = clang_sys::clang_createIndex(0, 0);
-        let unit = clang_sys::clang_parseTranslationUnit(
-            index,
-            c"./tests/resources/sample.c".as_ptr(),
-            null(),
-            0,
-            null_mut(),
-            0,
-            CXTranslationUnit_DetailedPreprocessingRecord,
-        );
-        let cursor = clang_getTranslationUnitCursor(unit);
+        let cursor = test_resource();
         clang_visitChildren(
             cursor,
             visitor,

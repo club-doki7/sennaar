@@ -4,6 +4,10 @@ use clang_sys::*;
 
 pub type ClangError = String;
 
+pub trait CXStringToString {
+    fn try_to_string(self) -> Result<String, ClangError>;
+}
+
 /// convert and consume
 #[allow(non_snake_case)]
 pub unsafe fn from_CXString(s: CXString) -> Result<String, ClangError> {
@@ -17,17 +21,24 @@ pub unsafe fn from_CXString(s: CXString) -> Result<String, ClangError> {
         Ok(owned)
     }
 }
+
+impl CXStringToString for CXString {
+    fn try_to_string(self) -> Result<String, ClangError> {
+        unsafe {
+            from_CXString(self)
+        }
+    }
+}
+
 pub fn get_cursor_display(cursor: CXCursor) -> Result<String, ClangError> {
     unsafe {
-        let raw = clang_getCursorDisplayName(cursor);
-        from_CXString(raw)
+        clang_getCursorDisplayName(cursor).try_to_string()
     }
 }
 
 pub fn get_cursor_spelling(cursor: CXCursor) -> Result<String, ClangError> {
     unsafe {
-        let raw = clang_getCursorSpelling(cursor);
-        from_CXString(raw)
+        clang_getCursorSpelling(cursor).try_to_string()
     }
 }
 
