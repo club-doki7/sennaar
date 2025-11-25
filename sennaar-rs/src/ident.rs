@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::cell::RefCell;
+use std::cell::{OnceCell, RefCell};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Result as FmtResult;
@@ -11,12 +11,10 @@ use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
 use serde::de::Error as DeserializeError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::cthulhu::extend_lifetime;
-
 
 struct IdentInternal {
     original: String,
-    renamed: RefCell<Option<String>>
+    renamed: OnceCell<String>
 }
 
 thread_local! {
@@ -59,12 +57,8 @@ impl Identifier {
 
     pub fn renamed<'a>(&'a self) -> Option<&'a str> {
         self.0.renamed
-            .borrow()
-            .as_ref()
-            // SAFETY: As we only allow renaming one identifier once, the returned string is
-            // guaranteed to be valid as long as the Rc<RenameState> is alive. And since that Rc is
-            // held by the Identifier, it is guaranteed to be valid for the lifetime of the Identifier.
-            .map(|s| unsafe { extend_lifetime(s.as_str()) })
+            .get()
+            .map(|s| s.as_str())
     }
 
     pub fn try_rename(&self, new_name: &str) -> Result<(), String> {
@@ -72,18 +66,12 @@ impl Identifier {
             return Err("Renamed identifiers cannot contain ':'".to_string());
         }
 
-        let mut renamed = self.0.renamed.borrow_mut();
-        if let Some(current) = renamed.as_ref() {
-            if current == new_name {
-                return Ok(());
-            }
-            return Err(format!(
+        self.0.renamed
+            .set(new_name.to_string())
+            .map_err(|_| format!(
                 "Cannot rename identifier '{}' to '{}': already renamed to '{}'",
-                self.0.original, new_name, current
-            ));
-        }
-        renamed.replace(new_name.to_string());
-        Ok(())
+                self.0.original, new_name, self.0.renamed.get().unwrap()
+            ))
     }
 
     pub fn rename(&self, new_name: &str) {
@@ -192,7 +180,7 @@ impl Internalize for str {
             } else {
                 let state = Rc::new(IdentInternal {
                     original: self.to_string(),
-                    renamed: RefCell::new(None),
+                    renamed: OnceCell::new(),
                 });
                 renames.insert(self.to_string(), state.clone());
                 state
