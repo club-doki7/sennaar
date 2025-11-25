@@ -68,12 +68,12 @@ pub unsafe fn map_ty(ty: CXType, ctx: &mut ClangCtx) -> Result<CType, ClangError
                 // We can't handle `int arr[const]`, ty.is_const and element_ty.is_const are both false.
                 let element_ty = clang_getArrayElementType(ty);
                 let mapped = map_ty(element_ty, ctx)?;
-                let size = clang_getArraySize(ty);
+                // let size = clang_getArraySize(ty);
 
-                println!("My const: {}", is_const);
-                println!("My element const: {}", clang_isConstQualifiedType(element_ty) != 0);
-                println!("My element const 2: {}", clang_isConstQualifiedType(clang_getElementType(ty)) != 0);
-                println!("My size: {}", size);
+                // println!("My const: {}", is_const);
+                // println!("My element const: {}", clang_isConstQualifiedType(element_ty) != 0);
+                // println!("My element const 2: {}", clang_isConstQualifiedType(clang_getElementType(ty)) != 0);
+                // println!("My size: {}", size);
 
                 CBaseType::Array(Box::new(mapped), None)
             }

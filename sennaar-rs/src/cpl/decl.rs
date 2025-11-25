@@ -82,15 +82,7 @@ impl Display for CDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CDecl::Typedef(decl) => {
-                write!(f, "typedef")?;
-                // TODO
-                Ok(())
-
-                // if decl.with_decl.is_some() {
-                //     write!(f, "'")?;
-                // }
-
-                // write!(f, " {} {};", decl.underlying, decl.name)
+                write!(f, "typedef {} {};", decl.underlying, decl.name)
             }
             CDecl::Fn(decl) => {
                 CType::fmt_fun(f, &decl.ret, &decl.parameters, Some(&decl.name), false, false)?;

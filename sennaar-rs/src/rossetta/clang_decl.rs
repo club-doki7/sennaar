@@ -16,15 +16,7 @@ pub unsafe fn map_decl(cursor: CXCursor, ctx: &mut ClangCtx) -> Result<CDecl, Cl
 
         let decl = match kind {
             CXCursor_TypedefDecl => {
-                let child = first_children(cursor);
-                let underlying = if let Some(child) = child 
-                    // TODO: maybe also enum
-                    && get_kind(child) == CXCursor_StructDecl { 
-                        either::Either::Right(map_decl(child, ctx)?)
-                    } else { 
-                        let underlying = clang_getTypedefDeclUnderlyingType(cursor);
-                        either::Either::Left(map_ty(underlying, ctx)?)
-                    };
+                let underlying  = map_ty(clang_getTypedefDeclUnderlyingType(cursor), ctx)?;
 
                 CDecl::Typedef(Box::new(CTypedefDecl {
                     name: name.interned(),
