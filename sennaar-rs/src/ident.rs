@@ -147,15 +147,14 @@ impl<'de> Deserialize<'de> for Identifier {
         D: Deserializer<'de>,
     {
         let s: String = Deserialize::deserialize(deserializer)?;
-        let parts: Vec<&str> = s.rsplitn(2, ':').collect();
-        if parts.len() == 2 {
-            let ident = parts[0].interned();
-            match ident.try_rename(parts[1]) {
+        if let Some((original, renamed)) = s.split_once(':') {
+            let ident = original.interned();
+            match ident.try_rename(renamed) {
                 Ok(_) => Ok(ident),
                 Err(e) => {
                     Err(DeserializeError::custom(format!(
-                        "Failed to rename identifier '{}': {}",
-                        ident.0.original, e
+                        "Failed renaming identifier '{}' to '{}': {}",
+                        original, renamed, e
                     )))
                 }
             }
