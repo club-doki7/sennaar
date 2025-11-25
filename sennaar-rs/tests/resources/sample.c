@@ -24,7 +24,7 @@ void foo(int a, int b) {
   a += b;
 }
 
-int callback(int (*f)(unsigned int, int), int arr[10]) {
+int callback(int (*f)(unsigned int, int), int arr[]) {
   return 0;
 }
 
@@ -32,6 +32,16 @@ void char_hell(unsigned char uchar, char char_s, signed char schar) {
 }
 
 void elaborate(ull b, struct Foo* foo, enum WHAT what) {
+}
+
+void konst_hell(
+  const char c, 
+  const int arr[5],
+  int arrr[const],
+  int * const p,
+  const int * const pp,
+  const int * const * const * const ppp
+) {
 }
 
 int noproto() {

@@ -5,7 +5,7 @@ use std::{
 
 use clang_sys::*;
 use sennaar::rossetta::{
-    clang_expr::{self, map_nodes},
+    clang_expr::{self, map_expr},
     clang_ty::{map_cursor_ty, map_ty},
     clang_utils::{from_CXString, get_children, get_cursor_spelling, is_expression},
 };
@@ -57,7 +57,7 @@ fn real_test_with_assertion() {
         let actual = get_children(fn_foo)
             .into_iter()
             .filter(|c| is_expression(*c))
-            .map(|e| format!("{}", map_nodes(e).unwrap_or_else(|err| error(err, e))))
+            .map(|e| format!("{}", map_expr(e).unwrap_or_else(|err| error(err, e))))
             .collect::<Vec<String>>();
 
         let expected = vec![
@@ -108,7 +108,7 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVi
         println!("Visiting cursor: {}", s);
 
         if clang_isExpression(cursor_kind) != 0 {
-            let mapped = clang_expr::map_nodes(e).unwrap_or_else(|err| error(err, e));
+            let mapped = clang_expr::map_expr(e).unwrap_or_else(|err| error(err, e));
 
             print_padding(level);
             println!("Expr: {}", mapped);

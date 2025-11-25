@@ -3,9 +3,10 @@ use std::fmt::Display;
 use clang_sys::*;
 
 use crate::{
-    Internalize,
-    cpl::*,
-    rossetta::{clang_ty::*, clang_utils::*},
+    Internalize, cpl::*, rossetta::{
+        clang_ty::*,
+        clang_utils::*,
+    }
 };
 
 #[allow(non_upper_case_globals)]
@@ -32,7 +33,7 @@ pub unsafe fn map_decl(cursor: CXCursor) -> Result<CDecl, ClangError> {
                     .filter(|e| get_kind(*e) == CXCursor_ParmDecl)
                     .map(map_param)
                     .collect::<Result<Vec<CParamDecl>, ClangError>>()?;
-                if let CType::FunProto(ret, _) = cty {
+                if let CBaseType::FunProto(ret, _) = cty.ty {
                     CDecl::Fn(Box::new(CFnDecl {
                         name: name.interned(),
                         ret,
@@ -147,7 +148,7 @@ impl Display for CDecl {
                 write!(f, "typedef {} {};", decl.underlying, decl.name)
             }
             CDecl::Fn(decl) => {
-                CType::fmt_fun(f, &decl.ret, &decl.parameters, Some(&decl.name), false)?;
+                CType::fmt_fun(f, &decl.ret, &decl.parameters, Some(&decl.name), false, false)?;
 
                 write!(f, ";")
             }

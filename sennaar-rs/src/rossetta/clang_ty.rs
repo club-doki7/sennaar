@@ -3,7 +3,7 @@
 use clang_sys::*;
 
 use crate::Internalize;
-use crate::cpl::{CSign, CType};
+use crate::cpl::{CBaseType, CSign, CType};
 use crate::rossetta::clang_utils::*;
 
 // TODO: safety section??
@@ -16,16 +16,17 @@ pub unsafe fn map_cursor_ty(cursor: CXCursor) -> Result<CType, ClangError> {
 
 pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
     unsafe {
-        // TODO: handle "const", see clang_isConstQualifiedType
+        let is_const = clang_isConstQualifiedType(ty) != 0;
+
         if let Some(prime) = try_map_primitive(ty) {
-            return Ok(prime);
+            return Ok(CType { is_const, ty: prime });
         }
 
-        let cty = match ty.kind {
+        let cty: CBaseType = match ty.kind {
             CXType_Pointer => {
                 let pointee = clang_getPointeeType(ty);
                 let mapped = map_ty(pointee)?;
-                CType::Pointer(Box::new(mapped))
+                CBaseType::Pointer(Box::new(mapped))
             }
 
             // function with parameters
@@ -39,7 +40,7 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                     .map(|p| map_ty(p))
                     .collect::<Result<Vec<CType>, String>>()?;
 
-                CType::FunProto(Box::new(mapped_result), mapped_params)
+                CBaseType::FunProto(Box::new(mapped_result), mapped_params)
             }
 
             // function with no parameters
@@ -47,7 +48,7 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 let result = clang_getResultType(ty);
                 let mapped_result = map_ty(result)?;
 
-                CType::FunProto(Box::new(mapped_result), Vec::new())
+                CBaseType::FunProto(Box::new(mapped_result), Vec::new())
             }
 
             CXType_ConstantArray => {
@@ -59,19 +60,36 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
 
                 let mapped_element_ty = map_ty(element_ty)?;
 
-                CType::Array(Box::new(mapped_element_ty), size as u64)
+                CBaseType::Array(Box::new(mapped_element_ty), size as u64)
+            }
+
+            CXType_IncompleteArray => {
+                // We can't handle `int arr[const]`, ty.is_const and element_ty.is_const are both false.
+                let element_ty = clang_getArrayElementType(ty);
+                let mapped = map_ty(element_ty)?;
+                let size = clang_getArraySize(ty);
+
+                println!("My const: {}", is_const);
+                println!("My element const: {}", clang_isConstQualifiedType(element_ty) != 0);
+                println!("My element const 2: {}", clang_isConstQualifiedType(clang_getElementType(ty)) != 0);
+                println!("My size: {}", size);
+
+                CBaseType::Pointer(Box::new(mapped))
             }
 
             // struct Foo/enum Bar/typedef things
             CXType_Elaborated => {
                 let inner = clang_Type_getNamedType(ty);
-                map_ty(inner)?
+                // i guess `is_const` is always false
+                let mapped = map_ty(inner)?;
+                assert!(! mapped.is_const);
+                mapped.ty
             }
 
             CXType_Typedef => {
                 let raw_name = clang_getTypedefName(ty);
                 let name = from_CXString(raw_name)?;
-                CType::Typedef(name.interned())
+                CBaseType::Typedef(name.interned())
             }
 
             CXType_Record => {
@@ -80,7 +98,7 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 let raw_name = clang_getTypeSpelling(ty);
                 let name_with_struct = from_CXString(raw_name)?;
                 if let Some(name) = name_with_struct.strip_prefix("struct ") {
-                    CType::Struct(name.interned())
+                    CBaseType::Struct(name.interned())
                 } else {
                     unreachable!();
                 }
@@ -90,7 +108,7 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 let raw_name = clang_getTypeSpelling(ty);
                 let name_with_enum = from_CXString(raw_name)?;
                 if let Some(name) = name_with_enum.strip_prefix("enum ") {
-                    CType::Enum(name.interned())
+                    CBaseType::Enum(name.interned())
                 } else {
                     unreachable!();
                 }
@@ -109,11 +127,11 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
             }
         };
 
-        Ok(cty)
+        Ok(CType { is_const, ty: cty })
     }
 }
 
-fn try_map_primitive(ty: CXType) -> Option<CType> {
+fn try_map_primitive(ty: CXType) -> Option<CBaseType> {
     let ident = match ty.kind {
         CXType_Void => "void",
         CXType_Bool => "bool", // ??
@@ -130,7 +148,7 @@ fn try_map_primitive(ty: CXType) -> Option<CType> {
 
     let sign = map_primitive_sign(ty);
 
-    Some(CType::Primitive {
+    Some(CBaseType::Primitive {
         signed: sign,
         ident: ident.interned(),
     })
