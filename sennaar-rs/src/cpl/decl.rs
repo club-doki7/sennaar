@@ -4,7 +4,7 @@ use either::Either;
 
 use crate::{
     Identifier,
-    cpl::{CParamLike, CType},
+    cpl::{CParam, CType},
 };
 
 #[derive(Debug)]
@@ -26,13 +26,7 @@ pub struct CTypedefDecl {
 pub struct CFnDecl {
     pub name: Identifier,
     pub ret: Box<CType>,
-    pub parameters: Vec<CParamDecl>,
-}
-
-#[derive(Debug)]
-pub struct CParamDecl {
-    pub name: Identifier,
-    pub ty: CType,
+    pub parameters: Vec<CParam>,
 }
 
 pub type RecordName = Either<Identifier, String>;
@@ -66,22 +60,6 @@ pub struct CEnumConstantDecl {
     pub name: Identifier,
     pub explicit: bool,
     pub value: u64,
-}
-
-impl Display for CParamDecl {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.ty, self.name)
-    }
-}
-
-impl CParamLike for CParamDecl {
-    fn name(&self) -> Option<&Identifier> {
-        Some(&self.name)
-    }
-
-    fn ty(&self) -> &CType {
-        &self.ty
-    }
 }
 
 impl CDecl {

@@ -2,8 +2,8 @@
 
 use clang_sys::*;
 
-use crate::{Internalize, registry};
-use crate::cpl::{CBaseType, CPrimitive, CType};
+use crate::Internalize;
+use crate::cpl::{CBaseType, CParam, CPrimitive, CType};
 use crate::rossetta::clang_utils::*;
 
 // TODO: safety section??
@@ -37,8 +37,10 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 let mapped_result = map_ty(result)?;
                 let mapped_params = params
                     .into_iter()
-                    .map(|p| map_ty(p))
-                    .collect::<Result<Vec<CType>, String>>()?;
+                    // It is impossible to get the name of parameter, the information is stored in where this type is used
+                    // i.e. for typedef void (*f)(int p);, there is a ParmDecl in the children of typedef.
+                    .map(|p| map_ty(p).map(|t| CParam { name: None, ty: t })) 
+                    .collect::<Result<Vec<CParam>, String>>()?;
 
                 CBaseType::FunProto(Box::new(mapped_result), mapped_params)
             }
@@ -163,31 +165,4 @@ fn try_map_primitive(ty: CXType) -> Option<CBaseType> {
     };
 
     Some(CBaseType::Primitive(primitive))
-}
-
-/// @return None when [cty] contains [FunProto].
-pub fn to_cpl_type(cty: &CType) -> Option<registry::Type<'static>> {
-    let ty = match &cty.ty {
-        CBaseType::Primitive(primitive) => registry::Type::identifier(format!("{}", primitive).interned()),
-        CBaseType::Array(element_type, len) => registry::Type::ArrayType(Box::new(registry::ArrayType {
-            element: to_cpl_type(&element_type)?,
-            length: todo!(),    // TODO: length
-            is_const: cty.is_const,
-        })),
-        CBaseType::Pointer(inner) => {
-            registry::Type::PointerType(Box::new(registry::PointerType {
-                pointee: to_cpl_type(&inner)?,
-                is_const: cty.is_const,
-                pointer_to_one: false,      // ??
-                nullable: false,    // ??
-            }))
-        },
-        CBaseType::FunProto(_, _) => return None,
-        CBaseType::Struct(identifier) => registry::Type::identifier(identifier.clone()),
-        CBaseType::UnnamedStruct(what) => todo!(),
-        CBaseType::Enum(identifier) => registry::Type::identifier(identifier.clone()),
-        CBaseType::Typedef(identifier) => registry::Type::identifier(identifier.clone()),
-    };
-
-    Some(ty)
 }

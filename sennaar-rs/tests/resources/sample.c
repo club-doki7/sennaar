@@ -13,22 +13,17 @@ struct Foo {
 typedef unsigned long long ull;
 
 typedef struct _what * what_handle;
-typedef struct how * how;
+typedef struct how how;
 
-typedef void (*MAIN)(int, char**);
+typedef void (*MAIN)(int argc, char** argv);
 
 typedef struct Wrap {
   int value;
 } Wrap;
 
-
 typedef struct {
   int walue;
 } Wrap2, *Wrap3, Wrap2d5;
-
-typedef struct {
-  int ualue;
-} Wrap4;
 
 struct {
   int yalue;
@@ -53,6 +48,9 @@ struct {
     int calue;
   };
 };
+
+typedef int (*(*fp_that_accept_fp_and_return_fp)(int (*f)(int f_input)))(int ret_input);
+typedef int (*fp_that_partialy_named)(int, char ** argv);
 
 
 void foo(int a, int b) {

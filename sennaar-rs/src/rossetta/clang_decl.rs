@@ -2,7 +2,7 @@ use clang_sys::*;
 use either::Either;
 
 use crate::{
-    Internalize, cpl::*, registry, rossetta::{
+    Internalize, cpl::*, rossetta::{
         clang_ty::*, clang_utils::*
     }
 };
@@ -17,10 +17,12 @@ pub unsafe fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result
         let decl = match kind {
             CXCursor_TypedefDecl => {
                 let underlying  = map_ty(clang_getTypedefDeclUnderlyingType(cursor))?;
+                // a more efficent way is [map_ty] with a cursor, but that makes thing more complicate.
+                let enrich_underlying = enrich_param(underlying, &mut cursor.get_children().into_iter())?;
 
                 CDecl::Typedef(Box::new(CTypedefDecl {
                     name: name.interned(),
-                    underlying,
+                    underlying: enrich_underlying,
                 }))
             }
 
@@ -31,7 +33,7 @@ pub unsafe fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result
                     .into_iter()
                     .filter(|e| get_kind(*e) == CXCursor_ParmDecl)
                     .map(|e| map_param(e))
-                    .collect::<Result<Vec<CParamDecl>, ClangError>>()?;
+                    .collect::<Result<Vec<CParam>, ClangError>>()?;
                 if let CBaseType::FunProto(ret, _) = cty.ty {
                     CDecl::Fn(Box::new(CFnDecl {
                         name: name.interned(),
@@ -64,7 +66,7 @@ pub unsafe fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result
                             if e.kind() == CXCursor_FieldDecl {
                                 map_field(e)
                                     .map(|it| fields.push(it))
-                                } else {
+                            } else {
                                 map_decl(e, extra_decls)
                                     .map(|it| {
                                         if let Some(decl) = it.get_record_decl()
@@ -75,7 +77,7 @@ pub unsafe fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result
                                         
                                         extra_decls.push(it)
                                     })
-                                }
+                            }
                         })?;
                 }
 
@@ -114,6 +116,66 @@ pub unsafe fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result
 
         Ok(decl)
     }
+}
+
+/// Enrich [CBaseType::FunProto] with children of [cursor].
+/// Consider `typedef void (*(*fp_that_accept_fp_and_return_fp)(void (*f)(int f_input)))(int ret_input)`
+/// or in Rust `fn(f: fn(f_input: u32) -> ()) -> (fn(ret_input: u32) -> ())`   // ignore some size problem
+/// The ParmDecl in its children looks like:
+/// ```plain
+/// ParmDecl(name: ret_input, type: int)
+/// ParmDecl(name: f, type: void (*)(int f_input))
+///   ParmDecl(name: f_input, type: int)        // child of `f`, not the typedef
+/// ```
+pub(crate) fn enrich_param(ty: CType, cursor: &mut impl Iterator<Item = CXCursor>) -> Result<CType, ClangError> {
+    let result = match ty.ty {
+        CBaseType::Array(elem_ty, len) => {
+            CType {
+                is_const: ty.is_const,
+                ty: CBaseType::Array(Box::new(enrich_param(*elem_ty, cursor)?), len)
+            }
+        },
+        CBaseType::Pointer(inner_ty) => CType {
+            is_const: ty.is_const,
+            ty: CBaseType::Pointer(Box::new(enrich_param(*inner_ty, cursor)?))
+        },
+        CBaseType::FunProto(ret_ty, params) => {
+            let enrich_ret = enrich_param(*ret_ty, cursor)?;
+            let enrich_params = params.into_iter()
+                .zip(cursor)
+                .map::<Result<CParam, ClangError>, _>(|(param, cursor)| {
+                    if cursor.kind() == CXCursor_ParmDecl {
+                        let name = cursor.get_spelling()?;
+                        if ! name.is_empty() {
+                            let enrich_ty = enrich_param(param.ty, &mut cursor.get_children().into_iter())?;
+                            return Ok(CParam {
+                                name: Some(name.interned()),
+                                ty: enrich_ty
+                            });
+                        }
+                        
+                        // fall though
+                    }
+
+                    Ok(param)
+                })
+                .collect::<Result<Vec<CParam>, ClangError>>()?;
+
+            CType {
+                is_const: ty.is_const,
+                ty: CBaseType::FunProto(Box::new(enrich_ret), enrich_params)
+            }
+        },
+
+        // leaf types
+        CBaseType::Primitive(_) 
+        | CBaseType::UnnamedStruct(_) 
+        | CBaseType::Struct(_) 
+        | CBaseType::Enum(_) 
+        | CBaseType::Typedef(_) => ty,
+    };
+
+    Ok(result)
 }
 
 pub(crate) fn map_field(cursor: CXCursor) -> Result<CFieldDecl, ClangError> {
@@ -156,7 +218,7 @@ pub(crate) fn map_enum_const(cursor: CXCursor) -> Result<CEnumConstantDecl, Clan
     }
 }
 
-pub(crate) fn map_param(cursor: CXCursor) -> Result<CParamDecl, ClangError> {
+pub(crate) fn map_param(cursor: CXCursor) -> Result<CParam, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         if kind != CXCursor_ParmDecl {
@@ -167,76 +229,9 @@ pub(crate) fn map_param(cursor: CXCursor) -> Result<CParamDecl, ClangError> {
         let name = get_cursor_spelling(cursor)?;
         let ty = map_cursor_ty(cursor)?;
 
-        Ok(CParamDecl {
-            name: name.interned(),
+        Ok(CParam {
+            name: Some(name.interned()),
             ty,
         })
     }
-}
-
-pub fn entitilize_decl<'decl, 'de, Resolver: Fn(RecordName) -> Option<&'decl CDecl>>(
-    registry: &mut registry::RegistryBase, decl: &CDecl, resolver: &Resolver
-) -> Option<()> {
-    match &decl {
-        CDecl::Typedef(typedef) => {
-            match &typedef.underlying.ty {
-                CBaseType::Pointer(ptr) => {
-                    match &ptr.ty {
-                        CBaseType::FunProto(ret, params) => {
-                            // typedef void (*foo)(...)
-                            let def = registry::FunctionTypedef::new(
-                                typedef.name.clone(), 
-                                todo!(), 
-                                to_cpl_type(&ret)?,
-                                true, 
-                                false       // TODO: i don't know
-                            );
-
-                            registry.function_typedefs.insert(def.name.clone(), def);
-                            return Some(())
-                        }
-
-                        CBaseType::Struct(_) | CBaseType::UnnamedStruct(_) => {
-                            let name = match &ptr.ty {
-                                CBaseType::Struct(ident) => Either::Left(ident.clone()),
-                                CBaseType::UnnamedStruct(usr) => Either::Right(usr.clone()),
-                                _ => unreachable!()
-                            };
-
-                            let decl = resolver(name);
-                            // typedef struct _Foo * Bar
-
-                            todo!();
-                            // typedef struct _Foo * Foo
-                            // this is a opaque handle typedef
-                            return Some(())
-                        }
-
-                        _ => {}
-                    }
-                }
-
-                CBaseType::Struct(ident) if ident == &typedef.name => {
-                    // typedef struct Foo Foo;
-                }
-
-                _ => {
-                    let def = registry::Typedef::new(
-                        typedef.name.clone(), to_cpl_type(&typedef.underlying)?
-                    );
-                }
-            }
-            todo!()
-        }
-        CDecl::Fn(decl) => {
-            registry::Command::new(
-                decl.name.clone(), todo!(), todo!(), todo!(), todo!(), todo!()
-            );
-        },
-        CDecl::Struct(cstruct_decl) => todo!(),
-        CDecl::Union(_) => todo!(),
-        CDecl::Enum(cenum_decl) => todo!(),
-    }
-
-    Some(())
 }

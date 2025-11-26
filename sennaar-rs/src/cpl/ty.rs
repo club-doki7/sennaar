@@ -63,11 +63,17 @@ impl Display for CPrimitive {
 }
 
 #[derive(Debug)]
+pub struct CParam {
+    pub name: Option<Identifier>,
+    pub ty: CType,
+}
+
+#[derive(Debug)]
 pub enum CBaseType {
     Primitive(CPrimitive),
     Array(Box<CType>, Option<u64>),
     Pointer(Box<CType>),
-    FunProto(Box<CType>, Vec<CType>),
+    FunProto(Box<CType>, Vec<CParam>),
     Struct(Identifier),
     /// a USR in [ClangCtx]
     UnnamedStruct(String),
@@ -98,6 +104,104 @@ impl CParamLike for CType {
 
     fn ty(&self) -> &CType {
         self
+    }
+}
+
+impl CBaseType {
+    pub fn is_pointer(&self) -> bool {
+        if let CBaseType::Pointer(_) = &self {
+            true
+        } else {
+            false
+        }
+    }
+
+    
+    pub fn normal_const(&self) -> bool {
+        match &self {
+            CBaseType::Array(_, _) => false,
+            CBaseType::Pointer(_) => false,
+            CBaseType::FunProto(_, _) => false,
+            _ => true
+        }
+    }
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, is_const: bool) -> std::fmt::Result {
+        if is_const && self.normal_const() {
+            write!(f, "const ")?;
+        }
+
+        match &self {
+            CBaseType::Primitive(primitive) => primitive.fmt(f),
+            CBaseType::Array(ctype, size) => {
+                write!(f, "{}[", ctype)?;
+
+                if let Some(size) = size {
+                    write!(f, "{}", size)?;
+                } else if is_const {
+                    // i guess `else if` is okay..
+                    write!(f, "const")?;
+                }
+
+                write!(f, "]")
+            },
+            CBaseType::Pointer(inner) => match &inner.ty {
+                CBaseType::FunProto(ret, params) => {
+                    CType::fmt_fun(f, ret, params, Some(&"".interned()), true, is_const)
+                }
+                _ => {
+                    if inner.ty.is_pointer() {
+                        write!(f, "{}*", inner)?;
+                    } else {
+                        write!(f, "{} *", inner)?;
+                    }
+
+                    if is_const {
+                        write!(f, "const")?;
+                    }
+
+                    Ok(())
+                },
+            },
+            // i guess function proto is never const
+            CBaseType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, None, false, false),
+            CBaseType::Typedef(ident) => write!(f, "{}", ident),
+            CBaseType::Struct(ident) => write!(f, "struct {}", ident),
+            CBaseType::UnnamedStruct(usr) => write!(f, "struct <USR: {}>", usr),
+            CBaseType::Enum(ident) => write!(f, "enum {}", ident),
+        }
+    }
+}
+
+impl Display for CBaseType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        CBaseType::fmt(&self, f, false)
+    }
+}
+
+impl Display for CParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.ty)?;
+
+        if let Some(name) = &self.name {
+            if self.ty.ty.is_pointer() {
+                write!(f, "{}", name)?;
+            } else {
+                write!(f, " {}", name)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl CParamLike for CParam {
+    fn name(&self) -> Option<&Identifier> {
+        self.name.as_ref()
+    }
+
+    fn ty(&self) -> &CType {
+        &self.ty
     }
 }
 
@@ -166,44 +270,6 @@ impl CType {
 
 impl Display for CType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.is_const && self.normal_const() {
-            write!(f, "const ")?;
-        }
-
-        match &self.ty {
-            CBaseType::Primitive(primitive) => primitive.fmt(f),
-            CBaseType::Array(ctype, size) => {
-                write!(f, "{}[", ctype)?;
-
-                if let Some(size) = size {
-                    write!(f, "{}", size)?;
-                } else if self.is_const {
-                    // i guess `else if` is okay..
-                    write!(f, "const")?;
-                }
-
-                write!(f, "]")
-            },
-            CBaseType::Pointer(inner) => match &inner.ty {
-                CBaseType::FunProto(ret, params) => {
-                    CType::fmt_fun(f, ret, params, Some(&"".interned()), true, self.is_const)
-                }
-                _ => {
-                    write!(f, "{} *", inner)?;
-
-                    if self.is_const {
-                        write!(f, "const")?;
-                    }
-
-                    Ok(())
-                },
-            },
-            // i guess function proto is never const
-            CBaseType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, None, false, false),
-            CBaseType::Typedef(ident) => write!(f, "{}", ident),
-            CBaseType::Struct(ident) => write!(f, "struct {}", ident),
-            CBaseType::UnnamedStruct(usr) => write!(f, "struct <USR: {}>", usr),
-            CBaseType::Enum(ident) => write!(f, "enum {}", ident),
-        }
+        CBaseType::fmt(&self.ty, f, self.is_const)
     }
 }
