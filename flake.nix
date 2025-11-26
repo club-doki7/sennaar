@@ -20,19 +20,13 @@
       {
         devShells.default = with pkgs; mkShell {
           buildInputs = [
-            # rust-overlay
-            openssl pkg-config eza fd rust
+            rust
 
             # libclang
             libclang
           ];
 
           LIBCLANG_PATH = lib.makeLibraryPath [ libclang.lib ];
-
-          shellHook = ''
-            alias ls=eza
-            alias find=fd
-          '';
         };
       }
     );
