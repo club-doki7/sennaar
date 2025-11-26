@@ -43,7 +43,7 @@ pub unsafe fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result
                 }
             }
 
-            CXCursor_StructDecl => {
+            CXCursor_StructDecl | CXCursor_UnionDecl => {
                 let has_name = ! cursor.is_anonymous();
                 let name = if has_name {
                     Either::Left(name.interned())
@@ -51,23 +51,43 @@ pub unsafe fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result
                     Either::Right(cursor.get_usr()?)
                 };
 
-                let children = get_children(cursor);
-                // TODO: not all children are FieldDecl, unnamed StructDecl/UnionDecl can appear when it is the type of the field.
-                let mut fields = Vec::<CFieldDecl>::new();
-                children.into_iter()
-                    .try_for_each(|e| {
-                        if e.kind() == CXCursor_FieldDecl {
-                            map_field(e)
-                                .map(|it| fields.push(it))
-                        } else {
-                            map_decl(e, extra_decls)
-                                .map(|it| extra_decls.push(it))
-                        }
-                    })?;
+                let is_definition = cursor.is_definition();
 
-                CDecl::Struct(Box::new(CStructDecl {
-                    name, fields,
-                }))
+                let mut fields = Vec::<CFieldDecl>::new();
+                let mut subrecords = Vec::<String>::new();
+
+                if is_definition {
+                    let children = get_children(cursor);
+                    // TODO: not all children are FieldDecl, unnamed StructDecl/UnionDecl can appear when it is the type of the field.
+                    children.into_iter()
+                        .try_for_each(|e| {
+                            if e.kind() == CXCursor_FieldDecl {
+                                map_field(e)
+                                    .map(|it| fields.push(it))
+                                } else {
+                                map_decl(e, extra_decls)
+                                    .map(|it| {
+                                        if let Some(decl) = it.get_record_decl()
+                                        && let Either::Right(usr) = &decl.name {
+                                            // only unnamed nested record(struct/union) will introduce IndirectFieldDecl
+                                            subrecords.push(usr.clone());
+                                        }
+                                        
+                                        extra_decls.push(it)
+                                    })
+                                }
+                        })?;
+                }
+
+                let decl = Box::new(CStructDecl {
+                    name, fields, subrecords, is_definition
+                });
+
+                match kind {
+                    CXCursor_StructDecl => CDecl::Struct(decl),
+                    CXCursor_UnionDecl => CDecl::Union(decl),
+                    _ => unreachable!()
+                }
             }
 
             CXCursor_EnumDecl => {
@@ -83,10 +103,6 @@ pub unsafe fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result
                     ty,
                     members: members,
                 }))
-            }
-
-            CXCursor_UnionDecl => {
-                todo!()
             }
 
             _ => {
@@ -158,47 +174,58 @@ pub(crate) fn map_param(cursor: CXCursor) -> Result<CParamDecl, ClangError> {
     }
 }
 
-pub fn entitilize_decl<'de>(registry: &mut registry::RegistryBase, decl: &CDecl) -> Option<()> {
+pub fn entitilize_decl<'decl, 'de, Resolver: Fn(RecordName) -> Option<&'decl CDecl>>(
+    registry: &mut registry::RegistryBase, decl: &CDecl, resolver: &Resolver
+) -> Option<()> {
     match &decl {
         CDecl::Typedef(typedef) => {
-            // match &typedef.underlying.ty {
-            //     CBaseType::Pointer(ptr) => {
-            //         match &ptr.ty {
-            //             CBaseType::FunProto(ret, params) => {
-            //                 // typedef void (*foo)(...)
-            //                 let def = registry::FunctionTypedef::new(
-            //                     typedef.name.clone(), 
-            //                     todo!(), 
-            //                     to_cpl_type(&ret)?,
-            //                     true, 
-            //                     false       // TODO: i don't know
-            //                 );
+            match &typedef.underlying.ty {
+                CBaseType::Pointer(ptr) => {
+                    match &ptr.ty {
+                        CBaseType::FunProto(ret, params) => {
+                            // typedef void (*foo)(...)
+                            let def = registry::FunctionTypedef::new(
+                                typedef.name.clone(), 
+                                todo!(), 
+                                to_cpl_type(&ret)?,
+                                true, 
+                                false       // TODO: i don't know
+                            );
 
-            //                 registry.function_typedefs.insert(def.name.clone(), def);
-            //                 return Some(())
-            //             }
+                            registry.function_typedefs.insert(def.name.clone(), def);
+                            return Some(())
+                        }
 
-            //             CBaseType::Struct(ident) => {
-            //                 todo!();
-            //                 // typedef struct _Foo * Foo
-            //                 // this is a opaque handle typedef
-            //                 return Some(())
-            //             }
+                        CBaseType::Struct(_) | CBaseType::UnnamedStruct(_) => {
+                            let name = match &ptr.ty {
+                                CBaseType::Struct(ident) => Either::Left(ident.clone()),
+                                CBaseType::UnnamedStruct(usr) => Either::Right(usr.clone()),
+                                _ => unreachable!()
+                            };
 
-            //             _ => {}
-            //         }
-            //     }
+                            let decl = resolver(name);
+                            // typedef struct _Foo * Bar
 
-            //     CBaseType::Struct(ident) if ident == &typedef.name => {
-            //         // typedef struct Foo Foo;
-            //     }
+                            todo!();
+                            // typedef struct _Foo * Foo
+                            // this is a opaque handle typedef
+                            return Some(())
+                        }
 
-            //     _ => {
-            //         let def = registry::Typedef::new(
-            //             typedef.name.clone(), to_cpl_type(&typedef.underlying)?
-            //         );
-            //     }
-            // }
+                        _ => {}
+                    }
+                }
+
+                CBaseType::Struct(ident) if ident == &typedef.name => {
+                    // typedef struct Foo Foo;
+                }
+
+                _ => {
+                    let def = registry::Typedef::new(
+                        typedef.name.clone(), to_cpl_type(&typedef.underlying)?
+                    );
+                }
+            }
             todo!()
         }
         CDecl::Fn(decl) => {
@@ -207,6 +234,7 @@ pub fn entitilize_decl<'de>(registry: &mut registry::RegistryBase, decl: &CDecl)
             );
         },
         CDecl::Struct(cstruct_decl) => todo!(),
+        CDecl::Union(_) => todo!(),
         CDecl::Enum(cenum_decl) => todo!(),
     }
 

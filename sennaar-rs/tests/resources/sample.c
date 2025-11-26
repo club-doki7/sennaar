@@ -48,10 +48,10 @@ struct {
     int aalue;
   } aalue_s;
 
-  // union {
-  //   int balue;
-  //   int calue;
-  // };
+  union {
+    int balue;
+    int calue;
+  };
 };
 
 

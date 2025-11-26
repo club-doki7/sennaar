@@ -37,6 +37,9 @@ pub trait CXCursorExtension {
     fn get_spelling(self) -> Result<String, ClangError>;
     fn is_anonymous(self) -> bool;
     fn get_usr(self) -> Result<String, ClangError>;
+    fn is_definition(self) -> bool;
+    fn get_definition(self) -> Option<CXCursor>;
+    fn is_null(self) -> bool;
 }
 
 impl CXCursorExtension for CXCursor {
@@ -65,6 +68,29 @@ impl CXCursorExtension for CXCursor {
     fn get_usr(self) -> Result<String, ClangError> {
         unsafe {
             clang_getCursorUSR(self).try_to_string()
+        }
+    }
+
+    fn is_null(self) -> bool {
+        unsafe {
+            clang_Cursor_isNull(self) != 0
+        }
+    }
+
+    fn is_definition(self) -> bool {
+        unsafe {
+            clang_isCursorDefinition(self) != 0
+        }
+    }
+
+    fn get_definition(self) -> Option<CXCursor> {
+        unsafe {
+            let cursor = clang_getCursorDefinition(self);
+            if cursor.is_null() {
+                None
+            } else {
+                Some(cursor)
+            }
         }
     }
 }

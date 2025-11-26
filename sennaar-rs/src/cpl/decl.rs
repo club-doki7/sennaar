@@ -12,6 +12,7 @@ pub enum CDecl {
     Typedef(Box<CTypedefDecl>),
     Fn(Box<CFnDecl>),
     Struct(Box<CStructDecl>),
+    Union(Box<CStructDecl>),
     Enum(Box<CEnumDecl>),
 }
 
@@ -34,11 +35,16 @@ pub struct CParamDecl {
     pub ty: CType,
 }
 
+pub type RecordName = Either<Identifier, String>;
+
 #[derive(Debug)]
 pub struct CStructDecl {
-    /// either a named struct or a unnamed struct with its USR in [ClangCtx]
-    pub name: Either<Identifier, String>,
+    /// either a named struct or a unnamed struct with its USR
+    pub name: RecordName,
     pub fields: Vec<CFieldDecl>,
+    /// whether this decl is a definition, false implies fields and subrecords are empty
+    pub is_definition: bool,
+    pub subrecords: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -78,6 +84,43 @@ impl CParamLike for CParamDecl {
     }
 }
 
+impl CDecl {
+    pub fn get_record_decl(&self) -> Option<&CStructDecl> {
+        match &self {
+            CDecl::Struct(decl) => Some(decl),
+            CDecl::Union(decl) => Some(decl),
+            _ => None
+        }
+    }
+
+    pub fn fmt_struct_like(f: &mut std::fmt::Formatter<'_>, keyword: &'static str, decl: &CStructDecl) -> std::fmt::Result {
+        write!(f, "{} ", keyword)?;
+
+        match &decl.name {
+            Either::Left(name) => write!(f, "{}", name)?,
+            Either::Right(usr) => write!(f, "/* USR: {} */", usr)?,
+        }
+
+        if decl.is_definition {
+            write!(f, " {{")?;
+
+            decl.fields
+                .iter()
+                .try_for_each(|field| write!(f, " {} {};", field.ty, field.name))?;
+
+            decl.subrecords
+                .iter()
+                .try_for_each(|subdecl| {
+                    write!(f, " <subdecl USR: {}>;", subdecl)
+                })?;
+
+            write!(f, " }}")?;
+        } 
+
+        write!(f, ";")
+    }
+}
+
 impl Display for CDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -89,22 +132,8 @@ impl Display for CDecl {
 
                 write!(f, ";")
             }
-            CDecl::Struct(decl) => {
-                write!(f, "struct ")?;
-
-                match &decl.name {
-                    Either::Left(name) => write!(f, "{}", name)?,
-                    Either::Right(usr) => write!(f, "/* USR: {} */", usr)?,
-                }
-
-                write!(f, " {{")?;
-
-                decl.fields
-                    .iter()
-                    .try_for_each(|field| write!(f, " {} {};", field.ty, field.name))?;
-
-                write!(f, " }};")
-            }
+            CDecl::Struct(decl) => CDecl::fmt_struct_like(f, "struct", decl),
+            CDecl::Union(decl) => CDecl::fmt_struct_like(f, "union", decl),
             CDecl::Enum(decl) => {
                 write!(f, "enum {} {{ ", decl.name)?;
 

@@ -19,7 +19,7 @@ fn test_map_decls() {
         }
 
         if ! extra_decls.is_empty() {
-            println!("All subdecl that is introduced by last decl:");
+            println!("All subdecls that is introduced by the previous decl:");
 
             extra_decls.iter().for_each(|it| {
                 println!("{}", it);
