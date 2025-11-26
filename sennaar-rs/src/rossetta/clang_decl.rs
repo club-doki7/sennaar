@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[allow(non_upper_case_globals)]
-pub unsafe fn map_decl(cursor: CXCursor) -> Result<CDecl, ClangError> {
+pub unsafe fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result<CDecl, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         // don't use get_cursor_display / clang_getCursorDisplayName, it includes some extra information.
@@ -52,10 +52,18 @@ pub unsafe fn map_decl(cursor: CXCursor) -> Result<CDecl, ClangError> {
                 };
 
                 let children = get_children(cursor);
-                let fields = children
-                    .into_iter()
-                    .map(|e| map_field(e))
-                    .collect::<Result<Vec<CFieldDecl>, ClangError>>()?;
+                // TODO: not all children are FieldDecl, unnamed StructDecl/UnionDecl can appear when it is the type of the field.
+                let mut fields = Vec::<CFieldDecl>::new();
+                children.into_iter()
+                    .try_for_each(|e| {
+                        if e.kind() == CXCursor_FieldDecl {
+                            map_field(e)
+                                .map(|it| fields.push(it))
+                        } else {
+                            map_decl(e, extra_decls)
+                                .map(|it| extra_decls.push(it))
+                        }
+                    })?;
 
                 CDecl::Struct(Box::new(CStructDecl {
                     name, fields,
@@ -75,6 +83,10 @@ pub unsafe fn map_decl(cursor: CXCursor) -> Result<CDecl, ClangError> {
                     ty,
                     members: members,
                 }))
+            }
+
+            CXCursor_UnionDecl => {
+                todo!()
             }
 
             _ => {

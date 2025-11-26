@@ -5,7 +5,7 @@ use std::{
 
 use clang_sys::*;
 use sennaar::rossetta::{
-    clang_expr::{self, map_expr}, clang_ty::{map_cursor_ty, map_ty}, clang_utils::{CXStringToString, from_CXString, get_children, get_cursor_spelling, is_expression}
+    clang_expr::{self, map_expr}, clang_ty::{map_cursor_ty, map_ty}, clang_utils::{CXCursorExtension, CXStringToString, from_CXString, get_children, get_cursor_spelling, is_expression}
 };
 
 mod prelude;
@@ -90,10 +90,10 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVi
             print_padding(level);
             println!("Expr: {}", mapped);
         } else {
-            let usr = clang_getCursorUSR(e).try_to_string().unwrap_or_error(e);
-            println_with_padding!(level, "USR: {}", usr);
             let anonymous = clang_Cursor_isAnonymous(e) != 0;
             let name = if cursor_kind == CXCursor_StructDecl && anonymous {
+                let usr = e.get_usr().unwrap_or_error(e);
+                println_with_padding!(level, "USR: {}", usr);
                 "unnamed".to_string()
             } else {
                 get_cursor_spelling(e).unwrap_or_error(e)
@@ -121,16 +121,10 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVi
                     // let ty = clang_getCursorType(e);
                     // let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
                     let underlying = clang_getTypedefDeclUnderlyingType(e);
-                    // make sure underlying is not unnamed, i really don't want to handle this case
                     let decl = clang_getTypeDeclaration(underlying);
-                    let underlying_anonymous = clang_Cursor_isAnonymous(decl) != 0;
 
-                    if ! underlying_anonymous {
-                        let cunderlying = map_ty(underlying).unwrap_or_error(e);   
-                        println_with_padding!(level, "Typedef Underlying: {}", cunderlying);
-                    } else {
-                        println_with_padding!(level, "Typedef Underlying: ANONYMOUS");
-                    }
+                    let cunderlying = map_ty(underlying).unwrap_or_error(e);   
+                    println_with_padding!(level, "Typedef Underlying: {}", cunderlying);
                 }
 
                 CXCursor_StructDecl => {

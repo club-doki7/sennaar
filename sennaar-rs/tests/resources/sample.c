@@ -38,17 +38,21 @@ typedef struct {
   int xalue;
 } *Wrap5;
 
-// struct {
-//   int zalue;
-//   struct {
-//     int aalue;
-//   } aalue_s;
+struct {
+  int zalue;
+  struct {
+    int useless;
+  };
 
-//   union {
-//     int balue;
-//     int calue;
-//   };
-// };
+  struct {
+    int aalue;
+  } aalue_s;
+
+  // union {
+  //   int balue;
+  //   int calue;
+  // };
+};
 
 
 void foo(int a, int b) {

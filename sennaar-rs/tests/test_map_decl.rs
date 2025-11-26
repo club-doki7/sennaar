@@ -8,13 +8,24 @@ use sennaar::rossetta::{
 #[test]
 fn test_map_decls() {
     let e = test_resource();
+    let mut extra_decls = Vec::new();
     
     visit_children(e, |cursor, _| unsafe {
         let kind = get_kind(cursor);
 
         if clang_isDeclaration(kind) != 0 {
-            let decl = map_decl(cursor).unwrap_or_error(e);
+            let decl = map_decl(cursor, &mut extra_decls).unwrap_or_error(e);
             println!("{}", decl);
+        }
+
+        if ! extra_decls.is_empty() {
+            println!("All subdecl that is introduced by last decl:");
+
+            extra_decls.iter().for_each(|it| {
+                println!("{}", it);
+            });
+
+            extra_decls.clear();
         }
 
         CXChildVisit_Continue
