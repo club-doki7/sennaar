@@ -27,6 +27,10 @@
           ];
 
           LIBCLANG_PATH = lib.makeLibraryPath [ libclang.lib ];
+
+          shellHook = ''
+            alias dumpAst='clang -Xclang -ast-dump -fsyntax-only'
+          '';
         };
       }
     );
