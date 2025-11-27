@@ -72,6 +72,8 @@ pub fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result<CDecl,
                                         if let Some(decl) = it.get_record_decl()
                                         && let Either::Right(usr) = &decl.name {
                                             // only unnamed nested record(struct/union) will introduce IndirectFieldDecl
+                                            // TODO: don't add all nested unnamed record to subrecords, as it might be used by fields,
+                                            // thus doesn't introduce any IndirectFieldDecl
                                             subrecords.push(usr.clone());
                                         }
                                         
