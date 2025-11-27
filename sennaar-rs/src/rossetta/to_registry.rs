@@ -1,6 +1,6 @@
 use either::Either;
 
-use crate::{Internalize, cpl::*, registry::{self, Param, Structure}};
+use crate::{Internalize, cpl::*, registry::{self, Param}, rossetta::clang_expr::map_int_literal};
 
 /// @param idx the index of the param, used when the param has no name.
 pub fn to_registry_param(param: &CParam, idx: usize) -> Result<registry::Param<'static>, String> {
@@ -19,23 +19,25 @@ pub fn to_registry_param(param: &CParam, idx: usize) -> Result<registry::Param<'
 pub fn to_registry_type(cty: &CType) -> Result<registry::Type<'static>, String> {
     let ty = match &cty.ty {
         CBaseType::Primitive(primitive) => registry::Type::identifier(format!("{}", primitive).interned()),
-        CBaseType::Array(element_type, len) => registry::Type::ArrayType(Box::new(registry::ArrayType {
-            element: to_registry_type(&element_type)?,
-            length: todo!(),    // TODO: length
-            is_const: cty.is_const,
-        })),
+        CBaseType::Array(element_type, len) => {
+            let len_expr = len.map(|i| CExpr::IntLiteral(Box::new(map_int_literal(i))));
+            registry::Type::ArrayType(Box::new(registry::ArrayType {
+                element: to_registry_type(&element_type)?,
+                length: len_expr,
+                is_const: cty.is_const,
+            }))
+        },
         CBaseType::Pointer(inner) => {
             registry::Type::PointerType(Box::new(registry::PointerType {
                 pointee: to_registry_type(&inner)?,
                 is_const: cty.is_const,
-                pointer_to_one: false,      // ??
-                nullable: false,    // ??
+                pointer_to_one: false,      // TODO: ??
+                nullable: false,    // TODO: ??
             }))
         },
         CBaseType::FunProto(_, _) => return Err(format!("Cannot convert a FunProto to Type: {}", cty)),
         CBaseType::Struct(identifier) => registry::Type::identifier(identifier.clone()),
-        // how?
-        CBaseType::UnnamedStruct(_) => unreachable!(),
+        CBaseType::UnnamedStruct(_) => return Err(format!("Cannot convert a UnnamedStruct to Type, please wrap with a Typedef: {}", cty)),
         CBaseType::Enum(identifier) => registry::Type::identifier(identifier.clone()),
         CBaseType::Typedef(identifier) => registry::Type::identifier(identifier.clone()),
     };
@@ -119,6 +121,8 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(RecordName) -> Option<&'decl CD
                 _ => {}
             }
 
+            // alias case
+
             let entity = registry::Typedef::new(
                 typedef.name.clone(), to_registry_type(&typedef.underlying)?
             );
@@ -137,7 +141,6 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(RecordName) -> Option<&'decl CD
                 decl.name.clone(),
                 reg_params,
                 ret,
-                // TODO: how do i now??
                 Vec::new(), 
                 Vec::new(),
                 None,
@@ -159,9 +162,9 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(RecordName) -> Option<&'decl CD
                                 field.name.clone(), 
                                 to_registry_type(&field.ty)?,
                                 None, 
-                                todo!(),       // TODO: parse init
+                                None,
                                 false, 
-                                None,       // TODO: len
+                                None,
                             ))
                         })
                         .collect::<Result<Vec<registry::Member<'static>>, String>>()?;
@@ -186,6 +189,18 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(RecordName) -> Option<&'decl CD
                 return Err(format!("Trying to entitilize a definition of a struct: {}", decl));
             }
         },
-        CDecl::Enum(cenum_decl) => todo!(),
+        CDecl::Enum(enum_decl) => {
+            let variants = enum_decl.members.iter().map(|variant| {
+                registry::EnumVariant::new(
+                    variant.name.clone(),
+                    CExpr::IntLiteral(Box::new(map_int_literal(variant.value))))
+            })
+            .collect();
+
+            let enume = registry::Enumeration::new(enum_decl.name.clone(), variants);
+            registry.enumerations.insert(enume.name.clone(), enume);
+
+            return Ok(())
+        },
     }
 }

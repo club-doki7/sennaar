@@ -335,3 +335,14 @@ unsafe fn get_suffix(cursor: CXCursor) -> &'static str {
         }
     }
 }
+
+pub fn map_int_literal(i: u64) -> CIntLiteralExpr<'static> {
+    let repr = format!("{:#X}", i);
+    let suffix = if i >= 0xFFFF {
+        "UL"
+    } else {
+        "U"
+    }.to_string();
+
+    CIntLiteralExpr { value: Cow::Owned(repr), suffix: Cow::Owned(suffix) }
+}

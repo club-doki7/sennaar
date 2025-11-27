@@ -1,11 +1,10 @@
 use std::{
-    ffi::c_void,
-    ptr::{null, null_mut},
+    ffi::c_void
 };
 
 use clang_sys::*;
 use sennaar::rossetta::{
-    clang_expr::{self, map_expr}, clang_ty::{map_cursor_ty, map_ty}, clang_utils::{CXCursorExtension, CXStringToString, from_CXString, get_children, get_cursor_spelling, is_expression}
+    clang_expr::{self, map_expr}, clang_ty::{map_cursor_ty, map_ty}, clang_utils::{CXCursorExtension, from_CXString, get_children, get_cursor_spelling, is_expression}
 };
 
 mod prelude;
@@ -121,7 +120,7 @@ extern "C" fn visitor(e: CXCursor, _p: CXCursor, data: *mut c_void) -> CXChildVi
                     // let ty = clang_getCursorType(e);
                     // let cty = map_ty(ty).unwrap_or_else(|err| error(err, e));
                     let underlying = clang_getTypedefDeclUnderlyingType(e);
-                    let decl = clang_getTypeDeclaration(underlying);
+                    // let decl = clang_getTypeDeclaration(underlying);
 
                     let cunderlying = map_ty(underlying).unwrap_or_error(e);   
                     println_with_padding!(level, "Typedef Underlying: {}", cunderlying);
