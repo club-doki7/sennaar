@@ -30,7 +30,6 @@ pub fn to_registry_type(cty: &CType) -> Result<registry::Type<'static>, String> 
         CBaseType::Pointer(inner) => {
             registry::Type::PointerType(Box::new(registry::PointerType {
                 pointee: to_registry_type(&inner)?,
-                // TODO: incorrect when `((const int) *)*p`, it becomes (is_const: false, pointee: (is_const: true, pointee: int))
                 is_const: inner.is_const,
                 pointer_to_one: false,      // TODO: ??
                 nullable: false,    // TODO: ??
@@ -46,7 +45,26 @@ pub fn to_registry_type(cty: &CType) -> Result<registry::Type<'static>, String> 
     Ok(ty)
 }
 
+pub(crate) fn to_registry_command<'decl, 'de>(
+    registry: &mut registry::RegistryBase, name: &Identifier, ret: &CType, params: &Vec<CParam>, is_pointer: bool
+) -> Result<(), String> {
+    let reg_params = params.iter()
+        .enumerate()
+        .map(|(idx, p)| to_registry_param(p, idx))
+        .collect::<Result<Vec<Param<'static>>, String>>()?;
+    
+    // typedef void (*foo)(...)
+    let def = registry::FunctionTypedef::new(
+        name.clone(),
+        reg_params,
+        to_registry_type(&ret)?,
+        is_pointer, 
+        false       // TODO: i don't know
+    );
 
+    registry.function_typedefs.insert(def.name.clone(), def);
+    return Ok(());
+}
 
 /// If [decl] is struct declaration (not definition), then no entity will be created, a opaque struct must live in a typedef.
 /// 
@@ -60,22 +78,7 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(&Identifier) -> Option<&'decl C
                 CBaseType::Pointer(ptr) => {
                     match &ptr.ty {
                         CBaseType::FunProto(ret, params) => {
-                            let reg_params = params.iter()
-                                .enumerate()
-                                .map(|(idx, p)| to_registry_param(p, idx))
-                                .collect::<Result<Vec<Param<'static>>, String>>()?;
-                            
-                            // typedef void (*foo)(...)
-                            let def = registry::FunctionTypedef::new(
-                                typedef.name.clone(), 
-                                reg_params,
-                                to_registry_type(&ret)?,
-                                true, 
-                                false       // TODO: i don't know
-                            );
-
-                            registry.function_typedefs.insert(def.name.clone(), def);
-                            return Ok(());
+                            return to_registry_command(registry, &typedef.name, ret, params, true);
                         }
 
                         // only named case
@@ -120,7 +123,9 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(&Identifier) -> Option<&'decl C
                 }
 
                 // handle `typedef void F(int i);`
-                CBaseType::FunProto(_, _) => todo!(),
+                CBaseType::FunProto(ret, params) => {
+                    return to_registry_command(registry, &typedef.name, ret, params, false);
+                },
 
                 _ => {}
             }

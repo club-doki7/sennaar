@@ -37,7 +37,7 @@ pub fn test_resource() -> CXCursor {
 #[macro_export]
 macro_rules! println_with_padding {
     ($level:ident, $($args:tt)*) => {
-        print_padding($level);
+        crate::prelude::print_padding($level);
         println!($($args)*);
     };
 }
