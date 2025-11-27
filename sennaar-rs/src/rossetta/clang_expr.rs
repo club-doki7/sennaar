@@ -12,7 +12,7 @@ use crate::{Identifier, Internalize};
 
 // TODO: improve error reporting
 // TODO: improve life time
-pub unsafe fn map_expr(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> {
+pub fn map_expr(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> {
     unsafe {
         let cursor_kind = clang_getCursorKind(cursor);
 

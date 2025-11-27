@@ -6,15 +6,14 @@ use crate::Internalize;
 use crate::cpl::{CBaseType, CParam, CPrimitive, CType};
 use crate::rossetta::clang_utils::*;
 
-// TODO: safety section??
-pub unsafe fn map_cursor_ty(cursor: CXCursor) -> Result<CType, ClangError> {
+pub fn map_cursor_ty(cursor: CXCursor) -> Result<CType, ClangError> {
     unsafe {
         let ty = clang_getCursorType(cursor);
         map_ty(ty)
     }
 }
 
-pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
+pub fn map_ty(ty: CXType) -> Result<CType, ClangError> {
     unsafe {
         let is_const = clang_isConstQualifiedType(ty) != 0;
 

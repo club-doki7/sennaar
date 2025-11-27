@@ -10,7 +10,7 @@ pub trait CXStringToString {
 
 /// convert and consume
 #[allow(non_snake_case)]
-pub unsafe fn from_CXString(s: CXString) -> Result<String, ClangError> {
+pub fn from_CXString(s: CXString) -> Result<String, ClangError> {
     unsafe {
         let raw_cs = clang_getCString(s);
         let owned = CStr::from_ptr(raw_cs)

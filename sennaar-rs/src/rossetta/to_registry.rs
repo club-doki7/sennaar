@@ -6,8 +6,7 @@ use crate::{Identifier, Internalize, cpl::*, registry::{self, Param}, rossetta::
 pub fn to_registry_param(param: &CParam, idx: usize) -> Result<registry::Param<'static>, String> {
     // TODO: unnamed case
     let param = registry::Param::new(
-        param.name.as_ref()
-            .map(|id| id.clone())
+        param.name.clone()
             .unwrap_or_else(|| format!("param{}", idx).interned()),
         to_registry_type(&param.ty)?, 
         false, 
@@ -22,14 +21,14 @@ pub fn to_registry_type(cty: &CType) -> Result<registry::Type<'static>, String> 
         CBaseType::Array(element_type, len) => {
             let len_expr = len.map(|i| CExpr::IntLiteral(Box::new(map_int_literal(i))));
             registry::Type::ArrayType(Box::new(registry::ArrayType {
-                element: to_registry_type(&element_type)?,
+                element: to_registry_type(element_type)?,
                 length: len_expr,
                 is_const: cty.is_const,
             }))
         },
         CBaseType::Pointer(inner) => {
             registry::Type::PointerType(Box::new(registry::PointerType {
-                pointee: to_registry_type(&inner)?,
+                pointee: to_registry_type(inner)?,
                 is_const: inner.is_const,
                 pointer_to_one: false,      // TODO: ??
                 nullable: false,    // TODO: ??
@@ -45,8 +44,8 @@ pub fn to_registry_type(cty: &CType) -> Result<registry::Type<'static>, String> 
     Ok(ty)
 }
 
-pub(crate) fn to_registry_command<'decl, 'de>(
-    registry: &mut registry::RegistryBase, name: &Identifier, ret: &CType, params: &Vec<CParam>, is_pointer: bool
+pub(crate) fn to_registry_command(
+    registry: &mut registry::RegistryBase, name: &Identifier, ret: &CType, params: &[CParam], is_pointer: bool
 ) -> Result<(), String> {
     let reg_params = params.iter()
         .enumerate()
@@ -57,7 +56,7 @@ pub(crate) fn to_registry_command<'decl, 'de>(
     let def = registry::FunctionTypedef::new(
         name.clone(),
         reg_params,
-        to_registry_type(&ret)?,
+        to_registry_type(ret)?,
         is_pointer, 
         false       // TODO: i don't know
     );
