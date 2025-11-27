@@ -38,6 +38,7 @@ pub trait CXCursorExtension {
     fn is_anonymous(self) -> bool;
     fn get_usr(self) -> Result<String, ClangError>;
     fn is_definition(self) -> bool;
+    fn is_declaration(self) -> bool;
     fn get_definition(self) -> Option<CXCursor>;
     fn is_null(self) -> bool;
 }
@@ -80,6 +81,12 @@ impl CXCursorExtension for CXCursor {
     fn is_definition(self) -> bool {
         unsafe {
             clang_isCursorDefinition(self) != 0
+        }
+    }
+
+    fn is_declaration(self) -> bool {
+        unsafe {
+            clang_isDeclaration(self.kind()) != 0
         }
     }
 

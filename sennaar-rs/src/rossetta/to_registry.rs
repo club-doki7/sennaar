@@ -1,6 +1,6 @@
 use either::Either;
 
-use crate::{Internalize, cpl::*, registry::{self, Param}, rossetta::clang_expr::map_int_literal};
+use crate::{Identifier, Internalize, cpl::*, registry::{self, Param}, rossetta::clang_expr::map_int_literal};
 
 /// @param idx the index of the param, used when the param has no name.
 pub fn to_registry_param(param: &CParam, idx: usize) -> Result<registry::Param<'static>, String> {
@@ -30,7 +30,8 @@ pub fn to_registry_type(cty: &CType) -> Result<registry::Type<'static>, String> 
         CBaseType::Pointer(inner) => {
             registry::Type::PointerType(Box::new(registry::PointerType {
                 pointee: to_registry_type(&inner)?,
-                is_const: cty.is_const,
+                // TODO: incorrect when `((const int) *)*p`, it becomes (is_const: false, pointee: (is_const: true, pointee: int))
+                is_const: inner.is_const,
                 pointer_to_one: false,      // TODO: ??
                 nullable: false,    // TODO: ??
             }))
@@ -50,7 +51,7 @@ pub fn to_registry_type(cty: &CType) -> Result<registry::Type<'static>, String> 
 /// If [decl] is struct declaration (not definition), then no entity will be created, a opaque struct must live in a typedef.
 /// 
 /// @param resolver resolve the given [RecordName] to [CDecl], return the definition if possible if it is [CDecl::Struct]
-pub fn to_registry_decl<'decl, 'de, Resolver: Fn(RecordName) -> Option<&'decl CDecl>>(
+pub fn to_registry_decl<'decl, 'de, Resolver: Fn(&Identifier) -> Option<&'decl CDecl>>(
     registry: &mut registry::RegistryBase, decl: &CDecl, resolver: &Resolver
 ) -> Result<(), String> {
     match &decl {
@@ -79,13 +80,13 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(RecordName) -> Option<&'decl CD
 
                         // only named case
                         CBaseType::Struct(name) => {
-                            let decl = resolver(Either::Left(name.clone()))
+                            let decl = resolver(name)
                                 .ok_or(format!("Cannot resolve {}", name))?
                                 .get_record_decl()
                                 .ok_or("Expected CStructDecl")?;
 
 
-                            if decl.is_definition {
+                            if ! decl.is_definition {
                                 let handle_typedef = registry::OpaqueHandleTypedef::new(typedef.name.clone());
 
                                 // typedef struct _Foo * Bar
@@ -102,12 +103,12 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(RecordName) -> Option<&'decl CD
 
                 CBaseType::Struct(name) => {
                     // identical to opaque handle typedef case, maybe extract
-                    let decl = resolver(Either::Left(name.clone()))
+                    let decl = resolver(name)
                         .ok_or(format!("Cannot resolve {}", name))?
                         .get_record_decl()
                         .ok_or("Expected CStructDecl")?;
 
-                    if decl.is_definition {
+                    if ! decl.is_definition {
                         let opaque_typedef = registry::OpaqueTypedef::new(typedef.name.clone());
                         // typedef struct Foo Foo;
 
@@ -117,6 +118,9 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(RecordName) -> Option<&'decl CD
 
                     // fall though to alias case
                 }
+
+                // handle `typedef void F(int i);`
+                CBaseType::FunProto(_, _) => todo!(),
 
                 _ => {}
             }

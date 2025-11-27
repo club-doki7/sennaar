@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[allow(non_upper_case_globals)]
-pub unsafe fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result<CDecl, ClangError> {
+pub fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result<CDecl, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         // don't use get_cursor_display / clang_getCursorDisplayName, it includes some extra information.

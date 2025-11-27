@@ -14,6 +14,6 @@ struct Nest {
     int ualue;
     union {
         int indirect0;
-        int indirect1;
+        int i
     };
 }

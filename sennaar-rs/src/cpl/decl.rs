@@ -71,6 +71,16 @@ impl CDecl {
         }
     }
 
+    pub fn name(&self) -> RecordName {
+        match &self {
+            CDecl::Typedef(decl) => Either::Left(decl.name.clone()),
+            CDecl::Fn(decl) => Either::Left(decl.name.clone()),
+            CDecl::Struct(decl) => decl.name.clone(),
+            CDecl::Union(decl) => decl.name.clone(),
+            CDecl::Enum(decl) => Either::Left(decl.name.clone()),
+        }
+    }
+
     pub fn fmt_struct_like(f: &mut std::fmt::Formatter<'_>, keyword: &'static str, decl: &CStructDecl) -> std::fmt::Result {
         write!(f, "{} ", keyword)?;
 
