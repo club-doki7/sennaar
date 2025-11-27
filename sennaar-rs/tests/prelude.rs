@@ -1,14 +1,23 @@
-use std::ptr::{null, null_mut};
+use std::{ffi::{CStr, CString}, ptr::{null, null_mut}};
 
 use clang_sys::*;
 use sennaar::rossetta::clang_utils::*;
 
-pub fn test_resource() -> CXCursor {
+const TEST_RESOURCE_DIR: &'static CStr = c"./tests/resources/";
+
+pub fn test_resource_of(path: &CStr) -> CXCursor {
+    let mut base = CString::from(TEST_RESOURCE_DIR)
+        .into_bytes();
+    base.extend_from_slice(path.to_bytes_with_nul());
+    let full_path = CString::from_vec_with_nul(base)
+        .unwrap();
+
+
     unsafe {
         let index = clang_sys::clang_createIndex(0, 0);
         let unit = clang_sys::clang_parseTranslationUnit(
             index,
-            c"./tests/resources/sample.c".as_ptr(),
+            full_path.as_ptr(),
             null(),
             0,
             null_mut(),
@@ -19,6 +28,10 @@ pub fn test_resource() -> CXCursor {
 
         clang_getTranslationUnitCursor(unit)
     }
+}
+
+pub fn test_resource() -> CXCursor {
+    test_resource_of(c"sample.c")
 }
 
 #[macro_export]
