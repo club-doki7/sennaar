@@ -5,9 +5,7 @@ use crate::panspace::tok::Token;
 #[derive(Debug, Clone)]
 pub enum MacroToken<'a> {
     Parameter(usize),
-    Token(Token<'a>),
-    Hash,
-    DHash
+    Token(Token<'a>)
 }
 
 pub struct MacroDefinition<'a> {

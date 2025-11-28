@@ -63,8 +63,7 @@ use crate::SourceLoc;
 ///     / % << >> < <= > >= == != ^ | && ||
 ///     ? : :: ; ...
 ///     = *= /= %= += -= <<= >>= &= ^= |=
-///     ,
-///     # ##                // <-- handled in macro expansion (mcr.rs) only, no token kinds
+///     , # ##
 ///     <: :> <% %> %: %:%: // <-- forwarded to their single-character equivalents
 /// ```
 #[allow(non_camel_case_types)]
@@ -125,6 +124,8 @@ pub enum TokenKind {
     P_CaretEq,
     P_PipeEq,
     P_Comma,
+    P_Hash,
+    P_DHash,
 
     KW_Alignas,
     KW_Alignof,
@@ -172,7 +173,7 @@ pub enum TokenKind {
     KW_Volatile,
     KW_While,
     KW_Atomic,
-    KW_BigInt,
+    KW_BitInt,
     KW_Complex,
     KW_Decimal128,
     KW_Decimal32,
@@ -308,6 +309,8 @@ impl Display for TokenKind {
             TokenKind::P_CaretEq => write!(f, "^="),
             TokenKind::P_PipeEq => write!(f, "|="),
             TokenKind::P_Comma => write!(f, ","),
+            TokenKind::P_Hash => write!(f, "#"),
+            TokenKind::P_DHash => write!(f, "##"),
 
             TokenKind::KW_Alignas => write!(f, "alignas"),
             TokenKind::KW_Alignof => write!(f, "alignof"),
@@ -355,7 +358,7 @@ impl Display for TokenKind {
             TokenKind::KW_Volatile => write!(f, "volatile"),
             TokenKind::KW_While => write!(f, "while"),
             TokenKind::KW_Atomic => write!(f, "_Atomic"),
-            TokenKind::KW_BigInt => write!(f, "_BigInt"),
+            TokenKind::KW_BitInt => write!(f, "_BitInt"),
             TokenKind::KW_Complex => write!(f, "_Complex"),
             TokenKind::KW_Decimal128 => write!(f, "_Decimal128"),
             TokenKind::KW_Decimal32 => write!(f, "_Decimal32"),
