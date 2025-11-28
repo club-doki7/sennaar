@@ -6,13 +6,13 @@ use serde::{Deserialize, Serialize};
 use crate::SourceLoc;
 
 /// C programming language token kinds.
-/// 
+///
 /// ## Reference (C23 standard)
-/// 
+///
 /// [ISO/IEC 9899:2024 - N3320 working draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf)
-/// 
+///
 /// ### A.2.1 Lexical elements
-/// 
+///
 /// ```bnf
 /// (6.4) token:
 ///      keyword
@@ -21,9 +21,9 @@ use crate::SourceLoc;
 ///      string-literal
 ///      punctuator
 /// ```
-/// 
+///
 /// ### A.2.1 Keywords
-/// 
+///
 /// ```bnf
 /// (6.4.1) keyword: one of
 ///     alignas       do            int            struct         while
@@ -38,9 +38,9 @@ use crate::SourceLoc;
 ///     continue      if            static         void           _Noreturn
 ///     default       inline        static_assert  volatile
 /// ```
-/// 
+///
 /// ### A.2.5 Constants
-/// 
+///
 /// ```bnf
 /// (6.4.4.1) constant:
 ///      integer-constant
@@ -48,14 +48,14 @@ use crate::SourceLoc;
 ///      enumeration-constant // <-- handled as identifier, no separate token kind
 ///      character-constant
 ///      predefined-constant  // <-- handled as three keywords
-/// 
+///
 /// (6.4.4.6) predefined-constant:
 ///      false
 ///      true
 ///      nullptr
-/// 
+///
 /// ### A.2.7 Punctuators
-/// 
+///
 /// ```bnf
 /// (6.4.6) punctuator: one of
 ///      [ ] ( ) { } . ->
@@ -65,7 +65,7 @@ use crate::SourceLoc;
 ///      = *= /= %= += -= <<= >>= &= ^= |=
 ///      ,
 ///      # ##                // <-- handled in macro expansion (mcr.rs) only, no token kinds
-///      <: :> <% %> %: %:%: // <-- forwarded to their single-character equivalents 
+///      <: :> <% %> %: %:%: // <-- forwarded to their single-character equivalents
 /// ```
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -194,11 +194,61 @@ pub struct Token<'a> {
     /// - Integer literals
     /// - Floating-point literals
     /// - Character literals
-    /// 
+    ///
     /// For other token kinds, this field is `None`.
     pub lexeme: Option<Cow<'a, str>>,
     /// The source location of the token.
     pub loc: SourceLoc<'a>
+}
+
+impl<'a> Token<'a> {
+    /// Creates a new token without a lexeme.
+    pub fn new(kind: TokenKind, loc: SourceLoc<'a>) -> Self {
+        debug_assert!(
+            match kind {
+                TokenKind::Identifier
+                | TokenKind::StringLiteral
+                | TokenKind::IntLiteral
+                | TokenKind::FloatLiteral
+                | TokenKind::CharLiteral => false,
+                _ => true
+            },
+            "TokenKind {:?} requires a lexeme",
+            kind
+        );
+
+        Self {
+            kind,
+            lexeme: None,
+            loc
+        }
+    }
+
+    /// Creates a new token with a lexeme.
+    pub fn with_lexeme(
+        kind: TokenKind,
+        lexeme: Cow<'a, str>,
+        loc: SourceLoc<'a>
+    ) -> Self {
+        debug_assert!(
+            match kind {
+                TokenKind::Identifier
+                | TokenKind::StringLiteral
+                | TokenKind::IntLiteral
+                | TokenKind::FloatLiteral
+                | TokenKind::CharLiteral => true,
+                _ => false
+            },
+            "TokenKind {:?} does not support a lexeme",
+            kind
+        );
+
+        Self {
+            kind,
+            lexeme: Some(lexeme),
+            loc
+        }
+    }
 }
 
 impl Display for TokenKind {
@@ -322,56 +372,6 @@ impl Display for Token<'_> {
             write!(f, "{}", lexeme)
         } else {
             write!(f, "{}", self.kind)
-        }
-    }
-}
-
-impl<'a> Token<'a> {
-    /// Creates a new token without a lexeme.
-    pub fn new(kind: TokenKind, loc: SourceLoc<'a>) -> Self {
-        debug_assert!(
-            match kind {
-                TokenKind::Identifier
-                | TokenKind::StringLiteral
-                | TokenKind::IntLiteral
-                | TokenKind::FloatLiteral
-                | TokenKind::CharLiteral => false,
-                _ => true
-            },
-            "TokenKind {:?} requires a lexeme",
-            kind
-        );
-
-        Self {
-            kind,
-            lexeme: None,
-            loc
-        }
-    }
-
-    /// Creates a new token with a lexeme.
-    pub fn with_lexeme(
-        kind: TokenKind,
-        lexeme: Cow<'a, str>,
-        loc: SourceLoc<'a>
-    ) -> Self {
-        debug_assert!(
-            match kind {
-                TokenKind::Identifier
-                | TokenKind::StringLiteral
-                | TokenKind::IntLiteral
-                | TokenKind::FloatLiteral
-                | TokenKind::CharLiteral => true,
-                _ => false
-            },
-            "TokenKind {:?} does not support a lexeme",
-            kind
-        );
-
-        Self {
-            kind,
-            lexeme: Some(lexeme),
-            loc
         }
     }
 }
