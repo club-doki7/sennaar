@@ -15,11 +15,11 @@ use crate::SourceLoc;
 ///
 /// ```bnf
 /// (6.4) token:
-///      keyword
-///      identifier
-///      constant
-///      string-literal
-///      punctuator
+///     keyword
+///     identifier
+///     constant
+///     string-literal
+///     punctuator
 /// ```
 ///
 /// ### A.2.1 Keywords
@@ -43,29 +43,29 @@ use crate::SourceLoc;
 ///
 /// ```bnf
 /// (6.4.4.1) constant:
-///      integer-constant
-///      floating-constant
-///      enumeration-constant // <-- handled as identifier, no separate token kind
-///      character-constant
-///      predefined-constant  // <-- handled as three keywords
+///     integer-constant
+///     floating-constant
+///     enumeration-constant // <-- handled as identifier, no separate token kind
+///     character-constant
+///     predefined-constant  // <-- handled as three keywords
 ///
 /// (6.4.4.6) predefined-constant:
-///      false
-///      true
-///      nullptr
+///     false
+///     true
+///     nullptr
 ///
 /// ### A.2.7 Punctuators
 ///
 /// ```bnf
 /// (6.4.6) punctuator: one of
-///      [ ] ( ) { } . ->
-///      ++ -- & * + - ~ !
-///      / % << >> < <= > >= == != ^ | && ||
-///      ? : :: ; ...
-///      = *= /= %= += -= <<= >>= &= ^= |=
-///      ,
-///      # ##                // <-- handled in macro expansion (mcr.rs) only, no token kinds
-///      <: :> <% %> %: %:%: // <-- forwarded to their single-character equivalents
+///     [ ] ( ) { } . ->
+///     ++ -- & * + - ~ !
+///     / % << >> < <= > >= == != ^ | && ||
+///     ? : :: ; ...
+///     = *= /= %= += -= <<= >>= &= ^= |=
+///     ,
+///     # ##                // <-- handled in macro expansion (mcr.rs) only, no token kinds
+///     <: :> <% %> %: %:%: // <-- forwarded to their single-character equivalents
 /// ```
 #[allow(non_camel_case_types)]
 #[non_exhaustive]
