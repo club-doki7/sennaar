@@ -36,7 +36,7 @@ use crate::SourceLoc;
 /// (6.4.1) keyword: one of
 ///     alignas       do            int            struct         while
 ///     alignof       double        long           switch         _Atomic
-///     auto          else          nullptr        thread_local   _BigInt
+///     auto          else          nullptr        thread_local   _BitInt
 ///     bool          enum          register       true           _Complex
 ///     break         extern        restrict       typedef        _Decimal128
 ///     case          false         return         typeof         _Decimal32
