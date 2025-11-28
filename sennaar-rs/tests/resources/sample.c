@@ -43,6 +43,8 @@ struct {
     int aalue;
   } aalue_s;
 
+  void (*struct_in_fp)(struct { int dalue } *s);
+
   union {
     int balue;
     int calue;

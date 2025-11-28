@@ -32,6 +32,7 @@ impl CXStringToString for CXString {
 
 pub trait CXCursorExtension {
     fn kind(self) -> CXCursorKind;
+    fn get_kind_spelling(self) -> Result<String, ClangError>;
     fn get_children(self) -> Vec<CXCursor>;
     fn get_display(self) -> Result<String, ClangError>;
     fn get_spelling(self) -> Result<String, ClangError>;
@@ -46,6 +47,12 @@ pub trait CXCursorExtension {
 impl CXCursorExtension for CXCursor {
     fn kind(self) -> CXCursorKind {
         get_kind(self)
+    }
+
+    fn get_kind_spelling(self) -> Result<String, ClangError> {
+        unsafe {
+            clang_getCursorKindSpelling(self.kind()).try_to_string()
+        }
     }
 
     fn get_children(self) -> Vec<CXCursor> {

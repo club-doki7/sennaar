@@ -77,6 +77,7 @@ pub enum CBaseType {
     Struct(Identifier),
     /// a USR in [ClangCtx]
     UnnamedStruct(String),
+    /// TODO: union
     Enum(Identifier),
     Typedef(Identifier),
 }
@@ -217,6 +218,53 @@ impl CType {
         CType {
             is_const: false,
             ty
+        }
+    }
+
+    pub fn for_each<'t, F: FnMut(&'t CType) -> ()>(&'t self, mut f: F) {
+        match &self.ty {
+            CBaseType::Array(ty, _) => f(ty),
+            CBaseType::Pointer(ty) => f(ty),
+            CBaseType::FunProto(ret, params) => {
+                f(ret);
+                params.iter().for_each(|p| f(&p.ty));
+            },
+
+            // leaf nodes
+            CBaseType::Primitive(_) 
+            | CBaseType::Struct(_) 
+            | CBaseType::UnnamedStruct(_) 
+            | CBaseType::Enum(_) 
+            | CBaseType::Typedef(_) => {},
+        }
+    }
+
+    pub fn map<F: Fn(Box<CType>) -> Box<CType>>(self, f: F) -> CType {
+        match self.ty {
+            CBaseType::Array(ty, len) => CType {
+                is_const: self.is_const,
+                ty: CBaseType::Array(f(ty), len)
+            },
+            CBaseType::Pointer(ty) => CType {
+                is_const: self.is_const,
+                ty: CBaseType::Pointer(f(ty))
+            },
+            CBaseType::FunProto(ty, params) => CType { 
+                is_const: self.is_const, 
+                ty: CBaseType::FunProto(f(ty), params.into_iter().map(|p| {
+                    CParam {
+                        name: p.name,
+                        ty: *f(Box::new(p.ty))
+                    }
+                }).collect())
+            },
+
+            // leaf nodes
+            CBaseType::Primitive(_) 
+            | CBaseType::Struct(_) 
+            | CBaseType::UnnamedStruct(_) 
+            | CBaseType::Enum(_) 
+            | CBaseType::Typedef(_) => self,
         }
     }
 

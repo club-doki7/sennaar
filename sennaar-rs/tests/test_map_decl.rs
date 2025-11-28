@@ -2,7 +2,7 @@ pub mod prelude;
 use clang_sys::{CXChildVisit_Continue, clang_isDeclaration};
 use prelude::*;
 use sennaar::rossetta::{
-    clang_decl::map_decl, clang_utils::{get_kind, visit_children}
+    clang_decl::{map_decl, name_unnamed_structs}, clang_utils::{get_kind, visit_children}
 };
 
 #[test]
@@ -18,6 +18,7 @@ fn assert_map_decls() {
 fn test_map_decls(assert: bool) {
     let e = test_resource_of(c"test_map_decl.c");
     let mut extra_decls = Vec::new();
+    let mut all_decls = Vec::new();
 
     let mut expected = vec![
         "struct /* USR: c:test_map_decl.c@Sa */ { int value; };",
@@ -42,6 +43,8 @@ fn test_map_decls(assert: bool) {
             } else {
                 println!("{}", display);
             }
+
+            all_decls.push(decl);
         }
 
         if ! extra_decls.is_empty() {
@@ -58,9 +61,11 @@ fn test_map_decls(assert: bool) {
                 }
             });
 
-            extra_decls.clear();
+            all_decls.append(&mut extra_decls);
         }
 
         CXChildVisit_Continue
     });
+
+    name_unnamed_structs(all_decls);
 }
