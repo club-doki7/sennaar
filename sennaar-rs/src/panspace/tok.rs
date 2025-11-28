@@ -20,6 +20,14 @@ use crate::SourceLoc;
 ///     constant
 ///     string-literal
 ///     punctuator
+///
+/// (6.4) preprocessing-token:
+///     header-name // <-- panspace does not care about include directives
+///     identifier
+///     pp-number
+///     character-constant
+///     string-literal
+///     punctuator
 /// ```
 ///
 /// ### A.2.1 Keywords
@@ -72,10 +80,12 @@ use crate::SourceLoc;
 #[derive(Serialize, Deserialize)]
 pub enum TokenKind {
     Identifier,
-    StringLiteral,
-    IntLiteral,
-    FloatLiteral,
-    CharLiteral,
+    L_String,
+    L_Int,
+    L_Float,
+    L_Char,
+
+    PP_Number,
 
     P_LBracket,
     P_RBracket,
@@ -183,6 +193,20 @@ pub enum TokenKind {
     KW_Noreturn,
 }
 
+impl TokenKind {
+    pub fn requires_lexeme(&self) -> bool {
+        match self {
+            TokenKind::Identifier
+            | TokenKind::L_String
+            | TokenKind::L_Int
+            | TokenKind::L_Float
+            | TokenKind::L_Char
+            | TokenKind::PP_Number => true,
+            _ => false
+        }
+    }
+}
+
 /// C programming language token.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[derive(Serialize, Deserialize)]
@@ -206,18 +230,7 @@ pub struct Token<'a> {
 impl<'a> Token<'a> {
     /// Creates a new token without a lexeme.
     pub fn new(kind: TokenKind, loc: SourceLoc<'a>) -> Self {
-        debug_assert!(
-            match kind {
-                TokenKind::Identifier
-                | TokenKind::StringLiteral
-                | TokenKind::IntLiteral
-                | TokenKind::FloatLiteral
-                | TokenKind::CharLiteral => false,
-                _ => true
-            },
-            "TokenKind {:?} requires a lexeme",
-            kind
-        );
+        debug_assert!(!kind.requires_lexeme(), "TokenKind {:?} requires a lexeme", kind);
 
         Self {
             kind,
@@ -232,18 +245,7 @@ impl<'a> Token<'a> {
         lexeme: Cow<'a, str>,
         loc: SourceLoc<'a>
     ) -> Self {
-        debug_assert!(
-            match kind {
-                TokenKind::Identifier
-                | TokenKind::StringLiteral
-                | TokenKind::IntLiteral
-                | TokenKind::FloatLiteral
-                | TokenKind::CharLiteral => true,
-                _ => false
-            },
-            "TokenKind {:?} does not support a lexeme",
-            kind
-        );
+        debug_assert!(kind.requires_lexeme(), "TokenKind {:?} does not require a lexeme", kind);
 
         Self {
             kind,
@@ -257,10 +259,12 @@ impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TokenKind::Identifier => write!(f, "<identifier>"),
-            TokenKind::StringLiteral => write!(f, "<string>"),
-            TokenKind::IntLiteral => write!(f, "<int>"),
-            TokenKind::FloatLiteral => write!(f, "<float>"),
-            TokenKind::CharLiteral => write!(f, "<char>"),
+            TokenKind::L_String => write!(f, "<string>"),
+            TokenKind::L_Int => write!(f, "<int>"),
+            TokenKind::L_Float => write!(f, "<float>"),
+            TokenKind::L_Char => write!(f, "<char>"),
+
+            TokenKind::PP_Number => write!(f, "<pp-number>"),
 
             TokenKind::P_LBracket => write!(f, "["),
             TokenKind::P_RBracket => write!(f, "]"),
