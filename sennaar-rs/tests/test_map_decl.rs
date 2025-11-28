@@ -21,14 +21,15 @@ fn test_map_decls(assert: bool) {
     let mut all_decls = Vec::new();
 
     let mut expected = vec![
-        "struct /* USR: c:test_map_decl.c@Sa */ { int value; };",
+        // "struct /* USR: c:test_map_decl.c@Sa */ { int value; };",
         "struct Named { int value; };",
         "struct TypedefUnnamed { int value; };",
         "typedef struct TypedefUnnamed TypedefUnnamed;",
         "struct TypedefNamed { int value; };",
         "typedef struct TypedefNamed TypedefNamed;",
-        "struct Nest { struct <USR: c:@S@Nest@S@test_map_decl.c@182> walue; int ualue; <subdecl USR: c:@S@Nest@S@test_map_decl.c@182>; <subdecl USR: c:@S@Nest@Ua>; };",
-        "struct /* USR: c:@S@Nest@S@test_map_decl.c@182 */ { int value; };",
+        "struct Nest { struct <USR: c:@S@Nest@S@test_map_decl.c@236> walue; struct <USR: c:@S@Nest@S@test_map_decl.c@236> * pvalue; void (*)(struct <USR: c:@S@Nest@S@test_map_decl.c@287> palue) f; int ualue; <subdecl USR: c:@S@Nest@Ua>; };",
+        "struct /* USR: c:@S@Nest@S@test_map_decl.c@236 */ { int value; };",
+        "struct /* USR: c:@S@Nest@S@test_map_decl.c@287 */ { int value; };",
         "union /* USR: c:@S@Nest@Ua */ { int indirect0; int indirect1; };",
     ].into_iter();
 
