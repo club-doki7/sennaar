@@ -68,6 +68,7 @@ use crate::SourceLoc;
 ///      <: :> <% %> %: %:%: // <-- forwarded to their single-character equivalents
 /// ```
 #[allow(non_camel_case_types)]
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[derive(Serialize, Deserialize)]
 pub enum TokenKind {
