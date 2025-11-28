@@ -38,6 +38,7 @@ pub struct CStructDecl {
     pub fields: Vec<CFieldDecl>,
     /// whether this decl is a definition, false implies fields and subrecords are empty
     pub is_definition: bool,
+    // TODO: after naming, all [subrecords] will store the identifier of those struct instead of USR
     pub subrecords: Vec<String>,
 }
 
