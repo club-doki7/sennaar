@@ -63,7 +63,8 @@ use crate::SourceLoc;
 ///      / % << >> < <= > >= == != ^ | && ||
 ///      ? : :: ; ...
 ///      = *= /= %= += -= <<= >>= &= ^= |=
-///      , # ##
+///      ,
+///      # ##                // <-- handled in macro expansion (mcr.rs) only, no token kinds
 ///      <: :> <% %> %: %:%: // <-- forwarded to their single-character equivalents 
 /// ```
 #[allow(non_camel_case_types)]
@@ -123,8 +124,6 @@ pub enum TokenKind {
     P_CaretEq,
     P_PipeEq,
     P_Comma,
-    P_Hash,
-    P_DHash,
 
     KW_Alignas,
     KW_Alignof,
@@ -202,6 +201,131 @@ pub struct Token<'a> {
     pub loc: SourceLoc<'a>
 }
 
+impl Display for TokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenKind::Identifier => write!(f, "<identifier>"),
+            TokenKind::StringLiteral => write!(f, "<string>"),
+            TokenKind::IntLiteral => write!(f, "<int>"),
+            TokenKind::FloatLiteral => write!(f, "<float>"),
+            TokenKind::CharLiteral => write!(f, "<char>"),
+
+            TokenKind::P_LBracket => write!(f, "["),
+            TokenKind::P_RBracket => write!(f, "]"),
+            TokenKind::P_LParen => write!(f, "("),
+            TokenKind::P_RParen => write!(f, ")"),
+            TokenKind::P_LBrace => write!(f, "{{"),
+            TokenKind::P_RBrace => write!(f, "}}"),
+            TokenKind::P_Dot => write!(f, "."),
+            TokenKind::P_Arrow => write!(f, "->"),
+            TokenKind::P_DPlus => write!(f, "++"),
+            TokenKind::P_DMinus => write!(f, "--"),
+            TokenKind::P_Amp => write!(f, "&"),
+            TokenKind::P_Aster => write!(f, "*"),
+            TokenKind::P_Plus => write!(f, "+"),
+            TokenKind::P_Minus => write!(f, "-"),
+            TokenKind::P_Tilde => write!(f, "~"),
+            TokenKind::P_Excl => write!(f, "!"),
+            TokenKind::P_Slash => write!(f, "/"),
+            TokenKind::P_Percent => write!(f, "%"),
+            TokenKind::P_DLt => write!(f, "<<"),
+            TokenKind::P_DGt => write!(f, ">>"),
+            TokenKind::P_Lt => write!(f, "<"),
+            TokenKind::P_Lte => write!(f, "<="),
+            TokenKind::P_Gt => write!(f, ">"),
+            TokenKind::P_Gte => write!(f, ">="),
+            TokenKind::P_DEq => write!(f, "=="),
+            TokenKind::P_ExclEq => write!(f, "!="),
+            TokenKind::P_Caret => write!(f, "^"),
+            TokenKind::P_Pipe => write!(f, "|"),
+            TokenKind::P_DAmp => write!(f, "&&"),
+            TokenKind::P_DPipe => write!(f, "||"),
+            TokenKind::P_Ques => write!(f, "?"),
+            TokenKind::P_Colon => write!(f, ":"),
+            TokenKind::P_DColon => write!(f, "::"),
+            TokenKind::P_Semicolon => write!(f, ";"),
+            TokenKind::P_Ellipsis => write!(f, "..."),
+            TokenKind::P_Eq => write!(f, "="),
+            TokenKind::P_AsterEq => write!(f, "*="),
+            TokenKind::P_SlashEq => write!(f, "/="),
+            TokenKind::P_PercentEq => write!(f, "%="),
+            TokenKind::P_PlusEq => write!(f, "+="),
+            TokenKind::P_MinusEq => write!(f, "-="),
+            TokenKind::P_DLtEq => write!(f, "<<="),
+            TokenKind::P_DGtEq => write!(f, ">>="),
+            TokenKind::P_AmpEq => write!(f, "&="),
+            TokenKind::P_CaretEq => write!(f, "^="),
+            TokenKind::P_PipeEq => write!(f, "|="),
+            TokenKind::P_Comma => write!(f, ","),
+
+            TokenKind::KW_Alignas => write!(f, "alignas"),
+            TokenKind::KW_Alignof => write!(f, "alignof"),
+            TokenKind::KW_Auto => write!(f, "auto"),
+            TokenKind::KW_Bool => write!(f, "bool"),
+            TokenKind::KW_Break => write!(f, "break"),
+            TokenKind::KW_Case => write!(f, "case"),
+            TokenKind::KW_Char => write!(f, "char"),
+            TokenKind::KW_Const => write!(f, "const"),
+            TokenKind::KW_Constexpr => write!(f, "constexpr"),
+            TokenKind::KW_Continue => write!(f, "continue"),
+            TokenKind::KW_Default => write!(f, "default"),
+            TokenKind::KW_Do => write!(f, "do"),
+            TokenKind::KW_Double => write!(f, "double"),
+            TokenKind::KW_Else => write!(f, "else"),
+            TokenKind::KW_Enum => write!(f, "enum"),
+            TokenKind::KW_Extern => write!(f, "extern"),
+            TokenKind::KW_False => write!(f, "false"),
+            TokenKind::KW_Float => write!(f, "float"),
+            TokenKind::KW_For => write!(f, "for"),
+            TokenKind::KW_Goto => write!(f, "goto"),
+            TokenKind::KW_If => write!(f, "if"),
+            TokenKind::KW_Inline => write!(f, "inline"),
+            TokenKind::KW_Int => write!(f, "int"),
+            TokenKind::KW_Long => write!(f, "long"),
+            TokenKind::KW_Nullptr => write!(f, "nullptr"),
+            TokenKind::KW_Register => write!(f, "register"),
+            TokenKind::KW_Restrict => write!(f, "restrict"),
+            TokenKind::KW_Return => write!(f, "return"),
+            TokenKind::KW_Short => write!(f, "short"),
+            TokenKind::KW_Signed => write!(f, "signed"),
+            TokenKind::KW_Sizeof => write!(f, "sizeof"),
+            TokenKind::KW_Static => write!(f, "static"),
+            TokenKind::KW_StaticAssert => write!(f, "static_assert"),
+            TokenKind::KW_Struct => write!(f, "struct"),
+            TokenKind::KW_Switch => write!(f, "switch"),
+            TokenKind::KW_ThreadLocal => write!(f, "thread_local"),
+            TokenKind::KW_True => write!(f, "true"),
+            TokenKind::KW_Typedef => write!(f, "typedef"),
+            TokenKind::KW_Typeof => write!(f, "typeof"),
+            TokenKind::KW_TypeofUnqual => write!(f, "typeof_unqual"),
+            TokenKind::KW_Union => write!(f, "union"),
+            TokenKind::KW_Unsigned => write!(f, "unsigned"),
+            TokenKind::KW_Void => write!(f, "void"),
+            TokenKind::KW_Volatile => write!(f, "volatile"),
+            TokenKind::KW_While => write!(f, "while"),
+            TokenKind::KW_Atomic => write!(f, "_Atomic"),
+            TokenKind::KW_BigInt => write!(f, "_BigInt"),
+            TokenKind::KW_Complex => write!(f, "_Complex"),
+            TokenKind::KW_Decimal128 => write!(f, "_Decimal128"),
+            TokenKind::KW_Decimal32 => write!(f, "_Decimal32"),
+            TokenKind::KW_Decimal64 => write!(f, "_Decimal64"),
+            TokenKind::KW_Generic => write!(f, "_Generic"),
+            TokenKind::KW_Imaginary => write!(f, "_Imaginary"),
+            TokenKind::KW_Noreturn => write!(f, "_Noreturn"),
+        }
+    }
+}
+
+impl Display for Token<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(lexeme) = &self.lexeme {
+            write!(f, "{}", lexeme)
+        } else {
+            write!(f, "{}", self.kind)
+        }
+    }
+}
+
 impl<'a> Token<'a> {
     /// Creates a new token without a lexeme.
     pub fn new(kind: TokenKind, loc: SourceLoc<'a>) -> Self {
@@ -248,15 +372,6 @@ impl<'a> Token<'a> {
             kind,
             lexeme: Some(lexeme),
             loc
-        }
-    }
-}
-
-impl<'a> Display for Token<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.lexeme {
-            Some(lexeme) => write!(f, "{:?}({})", self.kind, lexeme),
-            None => write!(f, "{:?}", self.kind),
         }
     }
 }

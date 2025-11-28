@@ -48,3 +48,22 @@ impl Display for SourceLoc<'_> {
         }
     }
 }
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum DiagnosticLevel {
+    Error,
+    Warning,
+    Info
+}
+
+#[derive(Debug, Clone)]
+pub struct Diagnostic<'a> {
+    pub level: DiagnosticLevel,
+    pub loc: SourceLoc<'a>,
+    pub message: String
+}
+
+#[derive(Debug, Clone)]
+pub struct DiagnosticContext<'a> {
+    pub diagnostics: Vec<Diagnostic<'a>>
+}

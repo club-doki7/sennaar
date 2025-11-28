@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
 use crate::panspace::tok::Token;
 
@@ -6,19 +6,15 @@ use crate::panspace::tok::Token;
 pub enum MacroToken<'a> {
     Parameter(usize),
     Token(Token<'a>),
+    Hash,
+    DHash
 }
 
 pub struct MacroDefinition<'a> {
     pub name: Cow<'a, str>,
     pub params: Option<Vec<Cow<'a, str>>>,
-    pub replacement: Vec<Token<'a>>,
+    pub replacement: Vec<MacroToken<'a>>,
 }
 
 impl<'a> MacroDefinition<'a> {
-    pub fn expand_rec(
-        &self,
-        args: Option<&[Vec<Token<'a>>]>,
-        registry: &HashMap<&str, MacroDefinition<'a>>
-    ) {
-    }
 }

@@ -1,8 +1,8 @@
+mod diag;
 mod ident;
-mod loc;
 
+pub use diag::*;
 pub use ident::*;
-pub use loc::*;
 
 pub mod cpl;
 pub mod registry;
