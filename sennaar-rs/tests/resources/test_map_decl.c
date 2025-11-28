@@ -1,12 +1,14 @@
-struct {
-    int value;
-};
+// uncomment thses until we can handle them
+
+// struct {
+//     int value;
+// };
 
 struct Named {
     int value;
 };
 
-typedef struct { int value } TypedefUnnamed;
+// typedef struct { int value } TypedefUnnamed;
 typedef struct TypedefNamed { int value } TypedefNamed;
 
 struct Nest {

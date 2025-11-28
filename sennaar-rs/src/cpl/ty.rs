@@ -239,7 +239,7 @@ impl CType {
         }
     }
 
-    pub fn map<F: Fn(Box<CType>) -> Box<CType>>(self, f: F) -> CType {
+    pub fn map<F: FnMut(Box<CType>) -> Box<CType>>(self, mut f: F) -> CType {
         match self.ty {
             CBaseType::Array(ty, len) => CType {
                 is_const: self.is_const,
@@ -304,15 +304,6 @@ impl CType {
         write!(f, ")")?;
 
         Ok(())
-    }
-
-    fn normal_const(&self) -> bool {
-        match &self.ty {
-            CBaseType::Array(_, _) => false,
-            CBaseType::Pointer(_) => false,
-            CBaseType::FunProto(_, _) => false,
-            _ => true
-        }
     }
 }
 

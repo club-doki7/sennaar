@@ -67,5 +67,13 @@ fn test_map_decls(assert: bool) {
         CXChildVisit_Continue
     });
 
-    name_unnamed_structs(all_decls);
+    let new_decls = name_unnamed_structs(all_decls);
+
+    if ! assert {
+        println!("After naming:");
+
+        new_decls.iter().for_each(|decl| {
+            println!("{}", decl);
+        });
+    }
 }

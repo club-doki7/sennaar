@@ -71,6 +71,15 @@ impl CDecl {
         }
     }
 
+    pub fn move_record_decl(self) -> Option<CStructDecl> {
+        match self {
+            CDecl::Struct(record) | CDecl::Union(record) => Some(*record),
+            CDecl::Typedef(_) 
+            | CDecl::Fn(_) 
+            | CDecl::Enum(_) => None,
+        }
+    }
+
     pub fn name(&self) -> RecordName {
         match &self {
             CDecl::Typedef(decl) => Either::Left(decl.name.clone()),

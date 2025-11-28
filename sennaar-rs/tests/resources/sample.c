@@ -10,6 +10,10 @@ struct Foo {
   int *aa;
 };
 
+struct {
+  int bb;
+} unnamed_with_var;
+
 typedef unsigned long long ull;
 
 typedef struct _what * what_handle;
@@ -37,6 +41,10 @@ struct {
   int zalue;
   struct {
     int useless;
+  };
+
+  struct NamedNest {
+    int wtf;
   };
 
   struct {
