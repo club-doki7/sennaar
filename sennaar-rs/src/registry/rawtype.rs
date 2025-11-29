@@ -11,20 +11,27 @@ use crate::Identifier;
 pub enum Type<'a> {
     IdentifierType(Box<IdentifierType>),
     ArrayType(Box<ArrayType<'a>>),
-    PointerType(Box<PointerType<'a>>)
+    PointerType(Box<PointerType<'a>>),
+}
+
+impl <'a> Type<'a> {
+    pub fn identifier(ident: Identifier) -> Type<'a> {
+        Type::IdentifierType(Box::new(IdentifierType { ident }))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(JsonSchema)]
 pub struct IdentifierType {
-    pub ident: Identifier
+    pub ident: Identifier,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(JsonSchema)]
 pub struct ArrayType<'a> {
     pub element: Type<'a>,
-    pub length: Option<CExpr<'a>>
+    pub length: Option<CExpr<'a>>,
+    pub is_const: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,5 +41,5 @@ pub struct PointerType<'a> {
     pub pointee: Type<'a>,
     pub is_const: bool,
     pub pointer_to_one: bool,
-    pub nullable: bool
+    pub nullable: bool,
 }

@@ -1,15 +1,67 @@
 #define MAKRO (114514)
 #define BIG_MACRO 1145141919810ULL
+#define BAD(s) s + s
 
 enum WHAT {
-  FOO, BAR
+  FOO, BAR, BAZ = 114514
 };
 
 struct Foo {
   int *aa;
 };
 
+struct {
+  int bb;
+} unnamed_with_var;
+
 typedef unsigned long long ull;
+
+typedef struct _what * what_handle;
+typedef struct how how;
+
+typedef void (*MAIN)(int argc, char** argv);
+
+typedef struct Wrap {
+  int value;
+} Wrap;
+
+typedef struct {
+  int walue;
+} Wrap2, *Wrap3, Wrap2d5;
+
+struct {
+  int yalue;
+};
+
+typedef struct {
+  int xalue;
+} *Wrap5;
+
+struct {
+  int zalue;
+  struct {
+    int useless;
+  };
+
+  struct NamedNest {
+    int wtf;
+  };
+
+  struct {
+    int aalue;
+  } aalue_s;
+
+  void (*struct_in_fp)(struct { int dalue } *s);
+
+  union {
+    int balue;
+    int calue;
+  };
+};
+
+typedef int (*(*fp_that_accept_fp_and_return_fp)(int (*f)(int f_input)))(int ret_input);
+typedef int (*fp_that_partialy_named)(int, char ** argv);
+
 
 void foo(int a, int b) {
   int arr[5];
@@ -23,7 +75,7 @@ void foo(int a, int b) {
   a += b;
 }
 
-int callback(int (*f)(unsigned int, int), int arr[10]) {
+int callback(int (*f)(unsigned int, int), int arr[]) {
   return 0;
 }
 
@@ -31,6 +83,16 @@ void char_hell(unsigned char uchar, char char_s, signed char schar) {
 }
 
 void elaborate(ull b, struct Foo* foo, enum WHAT what) {
+}
+
+void konst_hell(
+  const char c, 
+  const int arr[5],
+  int arrr[const],
+  int * const p,
+  const int * const pp,
+  const int * const * const * const ppp
+) {
 }
 
 int noproto() {

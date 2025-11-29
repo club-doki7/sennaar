@@ -11,13 +11,16 @@
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
         libclang = pkgs.llvmPackages_18.libclang;
+        rust = pkgs.rust-bin.stable.latest.default.override {
+          extensions = [
+            "rust-src" "rust-analyzer"
+          ];
+        };
       in
       {
         devShells.default = with pkgs; mkShell {
           buildInputs = [
-            # rust-overlay
-            openssl pkg-config eza fd 
-            rust-bin.stable.latest.default
+            rust
 
             # libclang
             libclang
@@ -26,8 +29,7 @@
           LIBCLANG_PATH = lib.makeLibraryPath [ libclang.lib ];
 
           shellHook = ''
-            alias ls=eza
-            alias find=fd
+            alias dumpAst='clang -Xclang -ast-dump -fsyntax-only'
           '';
         };
       }
