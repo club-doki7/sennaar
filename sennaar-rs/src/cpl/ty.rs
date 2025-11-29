@@ -76,7 +76,6 @@ pub enum CBaseType {
     FunProto(Box<CType>, Vec<CParam>),
     // (true if struct and false if union , name)
     Record(bool, RecordName),
-    /// TODO: union
     Enum(Identifier),
     Typedef(Identifier),
 }

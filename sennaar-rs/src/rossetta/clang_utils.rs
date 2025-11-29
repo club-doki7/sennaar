@@ -113,7 +113,6 @@ pub fn get_cursor_display(cursor: CXCursor) -> Result<String, ClangError> {
     }
 }
 
-// TODO: check if clang_Curosr_isAnnonymous ?
 pub fn get_cursor_spelling(cursor: CXCursor) -> Result<String, ClangError> {
     unsafe {
         clang_getCursorSpelling(cursor).try_to_string()

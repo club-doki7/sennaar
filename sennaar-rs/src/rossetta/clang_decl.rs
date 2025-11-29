@@ -362,16 +362,6 @@ pub fn name_unnamed_structs(decls: Vec<CDecl>) -> Vec<CDecl> {
     new_decls
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum ContextPathKind {
-    // record path node kind
-    Struct, Union, 
-    // type path node kind
-    FunRet, Ptr, Array,
-    // name owner kind
-    Field, FunParam, 
-}
-
 #[derive(Clone, Debug)]
 pub enum ContextPathNode {
     // `struct A { struct { ... } here; };` give you `Struct(A)`

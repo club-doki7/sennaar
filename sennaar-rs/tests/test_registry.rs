@@ -14,7 +14,7 @@ struct DeclMap {
 }
 
 fn add_decl(dest: &mut DeclMap, decl: CDecl) {
-    // TODO: be careful that different CDecl can have same name, like `Struct` and `Typedef`
+    // Be careful that different CDecl can have same name, like `Struct` and `Typedef`
     // We can put `Typedef` to another map to avoid this problem.
     if let CDecl::Struct(decl) | CDecl::Union(decl) = &decl {
         if ! decl.is_definition {

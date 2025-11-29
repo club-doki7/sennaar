@@ -4,7 +4,6 @@ use crate::{Identifier, Internalize, cpl::*, registry::{self, Param}, rossetta::
 
 /// @param idx the index of the param, used when the param has no name.
 pub fn to_registry_param(param: &CParam, idx: usize) -> Result<registry::Param<'static>, String> {
-    // TODO: unnamed case
     let param = registry::Param::new(
         param.name.clone()
             .unwrap_or_else(|| format!("param{}", idx).interned()),
