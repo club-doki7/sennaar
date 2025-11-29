@@ -4,17 +4,12 @@ use clang_sys::*;
 use either::Either;
 
 use crate::{
-    Identifier, Internalize, cpl::*, rossetta::{
+    Internalize, cpl::*, rossetta::{
         clang_ty::*, clang_utils::*
     }
 };
 
-pub struct MapDeclCtx<'decl, 'ctx> {
-    pub extra_decls: &'decl mut Vec<CDecl>,
-    // used for naming nested unnamed struct
-    pub context_path: &'ctx mut Vec<ContextPathNode>,
-}
-
+/// Extract C declaration/definition of given [CXCursor] to [CDecl]
 #[allow(non_upper_case_globals)]
 pub fn map_decl<'decl, 'ctx>(cursor: CXCursor, extra_decls: &'decl mut Vec<CDecl>) -> Result<CDecl, ClangError> {
     unsafe {
@@ -409,6 +404,7 @@ impl Usage {
     }
 
     /// Convert a USR to human readable name with [usages]
+    /// @param usages all usage to unnamed structures' usr
     fn _to_name(usages: &HashMap<String, Vec<Usage>>, usr: &String, cache: &mut HashMap<String, String>) -> String {
         if let Some(hit) = cache.get(usr) {
             return hit.clone();

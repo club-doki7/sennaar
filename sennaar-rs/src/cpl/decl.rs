@@ -7,6 +7,7 @@ use crate::{
     cpl::{CParam, CType},
 };
 
+// TODO: remove unnecessary Box
 #[derive(Debug)]
 pub enum CDecl {
     Typedef(Box<CTypedefDecl>),
