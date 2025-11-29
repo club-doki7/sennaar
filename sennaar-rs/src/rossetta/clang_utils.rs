@@ -24,13 +24,11 @@ pub fn from_CXString(s: CXString) -> Result<String, ClangError> {
 
 impl CXStringToString for CXString {
     fn try_to_string(self) -> Result<String, ClangError> {
-        unsafe {
-            from_CXString(self)
-        }
+        from_CXString(self)
     }
 }
 
-pub trait CXCursorExtension {
+pub trait CXCursorExtension : Copy {
     fn kind(self) -> CXCursorKind;
     fn get_kind_spelling(self) -> Result<String, ClangError>;
     fn get_children(self) -> Vec<CXCursor>;

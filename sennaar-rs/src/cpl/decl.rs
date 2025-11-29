@@ -12,8 +12,8 @@ use crate::{
 pub enum CDecl {
     Typedef(Box<CTypedefDecl>),
     Fn(Box<CFnDecl>),
-    Struct(Box<CStructDecl>),
-    Union(Box<CStructDecl>),
+    Struct(Box<CRecordDecl>),
+    Union(Box<CRecordDecl>),
     Enum(Box<CEnumDecl>),
     Var(Box<CVarDecl>),
 }
@@ -34,13 +34,12 @@ pub struct CFnDecl {
 pub type RecordName = Either<Identifier, String>;
 
 #[derive(Debug)]
-pub struct CStructDecl {
+pub struct CRecordDecl {
     /// either a named struct or a unnamed struct with its USR
     pub name: RecordName,
     pub fields: Vec<CFieldDecl>,
     /// whether this decl is a definition, false implies fields and subrecords are empty
     pub is_definition: bool,
-    // TODO: after naming, all [subrecords] will store the identifier of those struct instead of USR
     pub subrecords: Vec<RecordName>,
 }
 
@@ -72,7 +71,7 @@ pub struct CVarDecl {
 }
 
 impl CDecl {
-    pub fn get_record_decl(&self) -> Option<&CStructDecl> {
+    pub fn get_record_decl(&self) -> Option<&CRecordDecl> {
         match &self {
             CDecl::Struct(decl) => Some(decl),
             CDecl::Union(decl) => Some(decl),
@@ -80,7 +79,7 @@ impl CDecl {
         }
     }
 
-    pub fn move_record_decl(self) -> Option<CStructDecl> {
+    pub fn move_record_decl(self) -> Option<CRecordDecl> {
         match self {
             CDecl::Struct(record) | CDecl::Union(record) => Some(*record),
             CDecl::Typedef(_) 
@@ -101,7 +100,7 @@ impl CDecl {
         }
     }
 
-    pub fn fmt_struct_like(f: &mut std::fmt::Formatter<'_>, keyword: &'static str, decl: &CStructDecl) -> std::fmt::Result {
+    pub fn fmt_struct_like(f: &mut std::fmt::Formatter<'_>, keyword: &'static str, decl: &CRecordDecl) -> std::fmt::Result {
         write!(f, "{} ", keyword)?;
 
         match &decl.name {

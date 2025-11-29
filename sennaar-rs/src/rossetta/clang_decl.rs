@@ -11,7 +11,7 @@ use crate::{
 
 /// Extract C declaration/definition of given [CXCursor] to [CDecl]
 #[allow(non_upper_case_globals)]
-pub fn map_decl<'decl, 'ctx>(cursor: CXCursor, extra_decls: &'decl mut Vec<CDecl>) -> Result<CDecl, ClangError> {
+pub fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result<CDecl, ClangError> {
     unsafe {
         let kind = get_kind(cursor);
         // don't use get_cursor_display / clang_getCursorDisplayName, it includes some extra information.
@@ -113,7 +113,7 @@ pub fn map_decl<'decl, 'ctx>(cursor: CXCursor, extra_decls: &'decl mut Vec<CDecl
                         })?;
                 }
 
-                let decl = Box::new(CStructDecl {
+                let decl = Box::new(CRecordDecl {
                     name, fields, subrecords, is_definition
                 });
 
@@ -305,7 +305,7 @@ pub fn name_unnamed_structs(decls: Vec<CDecl>) -> Vec<CDecl> {
                         },
                     };
 
-                    let decl_op = |is_struct: bool, decl: CStructDecl| {
+                    let decl_op = |is_struct: bool, decl: CRecordDecl| {
                         let named_subrecords = decl.subrecords.iter()
                             .map(|usr| {
                                 let usr = usr.as_ref()
@@ -322,7 +322,7 @@ pub fn name_unnamed_structs(decls: Vec<CDecl>) -> Vec<CDecl> {
                             }
                         }).collect::<Vec<CFieldDecl>>();
                     
-                        CStructDecl {
+                        CRecordDecl {
                             name: Either::Left(name),
                             fields: inst_fields,
                             is_definition: decl.is_definition,
@@ -414,8 +414,8 @@ impl Usage {
             .expect(&format!("Usage of {} not found, this could be either a bug in `map_decl` or the map haven't been initialized.", usr));
 
         // TODO: generate name with ALL usage of usr
-        let result = usage.get(0)
-            .expect(&format!("Usage of {} contains empty context path, are you serious??", usr))
+        let result = usage.first()
+            .unwrap_or_else(|| panic!("Usage of {} contains empty context path, are you serious??", usr))
             .0.iter().map(|node| {
             match node {
                 ContextPathNode::Struct(name) | ContextPathNode::Union(name) => {
@@ -477,17 +477,17 @@ fn collect_usage_on_ty<'m, 't : 'm>(
     match &ty.ty {
         CBaseType::Array(ty, _) => {
             context.push(ContextPathNode::Array);
-            collect_usage_on_ty(&ty, dest, context);
+            collect_usage_on_ty(ty, dest, context);
         },
         CBaseType::Pointer(ty) => {
             context.push(ContextPathNode::Ptr);
-            collect_usage_on_ty(&ty, dest, context);
+            collect_usage_on_ty(ty, dest, context);
         },
         CBaseType::FunProto(ret, params) => {
             // TODO: fix clone
             let mut ret_ctx = context.clone();
             ret_ctx.push(ContextPathNode::FunRet);
-            collect_usage_on_ty(&ret, dest, ret_ctx);
+            collect_usage_on_ty(ret, dest, ret_ctx);
 
             for (idx, p) in params.iter().enumerate() {
                 let name = if let Some(name) = &p.name {
