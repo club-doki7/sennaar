@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use clang_sys::CXChildVisit_Continue;
 use either::Either;
-use sennaar::{Identifier, cpl::{CDecl, RecordName}, registry, rossetta::{clang_decl::{map_decl, name_unnamed_structs}, clang_utils::{CXCursorExtension, visit_children}, to_registry::to_registry_decl}};
+use sennaar::{Identifier, cpl::{CDecl, RecordName}, registry, rossetta::{clang_decl::map_decl, clang_utils::{CXCursorExtension, visit_children}, name_unnamed::name_unnamed_structs, to_registry::to_registry_decl}};
 
 use crate::prelude::{ResultExtension, test_resource_of};
 

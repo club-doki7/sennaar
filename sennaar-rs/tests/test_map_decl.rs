@@ -2,7 +2,7 @@ pub mod prelude;
 use clang_sys::{CXChildVisit_Continue, clang_isDeclaration};
 use prelude::*;
 use sennaar::rossetta::{
-    clang_decl::{map_decl, name_unnamed_structs}, clang_utils::{get_kind, visit_children}
+    clang_decl::map_decl, clang_utils::{get_kind, visit_children}, name_unnamed::name_unnamed_structs
 };
 
 #[test]
