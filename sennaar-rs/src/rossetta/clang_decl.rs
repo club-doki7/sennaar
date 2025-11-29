@@ -70,7 +70,7 @@ pub fn map_decl<'decl, 'ctx>(cursor: CXCursor, extra_decls: &'decl mut Vec<CDecl
                 let is_definition = cursor.is_definition();
 
                 let mut fields = Vec::<CFieldDecl>::new();
-                let mut subrecords = Vec::<String>::new();
+                let mut subrecords = Vec::<RecordName>::new();
 
                 if is_definition {
                     let children = get_children(cursor);
@@ -108,7 +108,7 @@ pub fn map_decl<'decl, 'ctx>(cursor: CXCursor, extra_decls: &'decl mut Vec<CDecl
                                 // don't add all nested unnamed record to subrecords, as it might be used by fields,
                                 // thus doesn't introduce any IndirectFieldDecl
                                 if ! used {
-                                    subrecords.push(usr.clone());
+                                    subrecords.push(Either::Right(usr.clone()));
                                 }
                             }
 
@@ -271,9 +271,13 @@ pub fn name_unnamed_structs(decls: Vec<CDecl>) -> Vec<CDecl> {
 
                     // collect all usage by struct (i mean `struct { struct { ... }; }`)
                     // these struct will not be referenced by any field, thus we can put them to usage_map at any time
-                    record.subrecords.iter().enumerate().for_each(|(idx, usr)| {
-                        // println!("subdecl {}: {}", idx, usr);
-                        usage_map.insert(usr.clone(), vec![ Usage(vec![ node.clone(), ContextPathNode::Nest(idx) ]) ]);
+                    record.subrecords.iter().enumerate().for_each(|(idx, name)| {
+                        if let Either::Right(usr) = name {
+                            // println!("subdecl {}: {}", idx, usr);
+                            usage_map.insert(usr.clone(), vec![ Usage(vec![ node.clone(), ContextPathNode::Nest(idx) ]) ]);
+                        } else {
+                            unreachable!("Subrecord in struct/union must be unnamed before name_unnamed_structs")
+                        }
                     });
                 }
             },
@@ -308,7 +312,11 @@ pub fn name_unnamed_structs(decls: Vec<CDecl>) -> Vec<CDecl> {
 
                     let decl_op = |is_struct: bool, decl: CStructDecl| {
                         let named_subrecords = decl.subrecords.iter()
-                            .map(|usr| Usage::to_name(&usage_map, usr, is_struct, &mut cache))
+                            .map(|usr| {
+                                let usr = usr.as_ref()
+                                    .expect_right("Subrecord in struct/union must be unnamed before name_unnamed_structs");
+                                Either::Left(Usage::to_name(&usage_map, usr, is_struct, &mut cache).interned())
+                            })
                             .collect();
 
                         let inst_fields = decl.fields.into_iter().map(|decl| {

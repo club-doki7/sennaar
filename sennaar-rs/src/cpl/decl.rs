@@ -40,7 +40,7 @@ pub struct CStructDecl {
     /// whether this decl is a definition, false implies fields and subrecords are empty
     pub is_definition: bool,
     // TODO: after naming, all [subrecords] will store the identifier of those struct instead of USR
-    pub subrecords: Vec<String>,
+    pub subrecords: Vec<RecordName>,
 }
 
 #[derive(Debug)]
@@ -118,7 +118,13 @@ impl CDecl {
             decl.subrecords
                 .iter()
                 .try_for_each(|subdecl| {
-                    write!(f, " <subdecl USR: {}>;", subdecl)
+                    write!(f, " <subdecl ")?;
+                    match subdecl {
+                        Either::Left(ident) => write!(f, "{}", ident)?,
+                        Either::Right(usr) => write!(f, "USR: {}", usr)?,
+                    }
+
+                    write!(f, ">;")
                 })?;
 
             write!(f, " }}")?;

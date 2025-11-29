@@ -35,8 +35,8 @@ pub fn to_registry_type(cty: &CType) -> Result<registry::Type<'static>, String> 
             }))
         },
         CBaseType::FunProto(_, _) => return Err(format!("Cannot convert a FunProto to Type: {}", cty)),
-        CBaseType::Struct(identifier) => registry::Type::identifier(identifier.clone()),
-        CBaseType::UnnamedStruct(_) => return Err(format!("Cannot convert a UnnamedStruct to Type, please wrap with a Typedef: {}", cty)),
+        CBaseType::Record(_, Either::Left(ident)) => registry::Type::identifier(ident.clone()),
+        CBaseType::Record(_, Either::Right(_)) => return Err(format!("Cannot convert a UnnamedStruct to Type, please wrap with a Typedef: {}", cty)),
         CBaseType::Enum(identifier) => registry::Type::identifier(identifier.clone()),
         CBaseType::Typedef(identifier) => registry::Type::identifier(identifier.clone()),
     };
@@ -103,7 +103,11 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(&Identifier) -> Option<&'decl C
                     }
                 }
 
-                CBaseType::Struct(name) => {
+                CBaseType::Record(is_struct, Either::Left(name)) => {
+                    if ! is_struct {
+                        todo!("`typedef union {{ ... }}` is not implemented yet.");
+                    }
+
                     // identical to opaque handle typedef case, maybe extract
                     let decl = resolver(name)
                         .ok_or(format!("Cannot resolve {}", name))?
