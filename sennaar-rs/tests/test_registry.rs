@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use clang_sys::CXChildVisit_Continue;
 use either::Either;
-use sennaar::{Identifier, cpl::{CDecl, RecordName}, registry, rossetta::{clang_decl::map_decl, clang_utils::{CXCursorExtension, visit_children}, to_registry::to_registry_decl}};
+use sennaar::{Identifier, cpl::{CDecl, RecordName}, registry, rossetta::{clang_decl::{map_decl, name_unnamed_structs}, clang_utils::{CXCursorExtension, visit_children}, to_registry::to_registry_decl}};
 
 use crate::prelude::{ResultExtension, test_resource_of};
 
@@ -37,35 +37,25 @@ fn add_decl(dest: &mut DeclMap, decl: CDecl) {
 fn test_registry() {
     let cursor = test_resource_of(c"test_registry.c");
 
-    // TODO:
-    // 0. extract CDecls from CXCursor to `all_decls: Vec<CDecls>`
-    // 1. name all unnamed struct/union in `all_decls` and produce `named_decls`
-    // 2. use `add_decl` on `named_decls` to produce `DeclMap`
-    // 3. use `DeclMap` to fill the `Registry`
-    let mut all_decls = DeclMap { typedefs: HashMap::new(), decls: HashMap::new() };
-    let mut extra_decls = Vec::<CDecl>::new();
-
+    let mut all_decls = Vec::<CDecl>::new();
+    
     visit_children(cursor, |e, _| {
         if e.is_declaration() {
-            let decl = map_decl(e, &mut extra_decls)
+            let decl = map_decl(e, &mut all_decls)
                 .unwrap_or_error(e);
-            
-            add_decl(&mut all_decls, decl);
-            
-            if ! extra_decls.is_empty() {
-                let extra_decls = std::mem::take(&mut extra_decls);
-                
-                extra_decls.into_iter()
-                    .for_each(|extra| {
-                        add_decl(&mut all_decls, extra);
-                    });
-            }
-        }
 
+            all_decls.push(decl);
+        }
+        
         CXChildVisit_Continue
     });
 
-    // TODO: name all anonymous decl, it is possible that they are not get typedef
+    let named_decl = name_unnamed_structs(all_decls);
+    let mut decl_map = DeclMap { typedefs: HashMap::new(), decls: HashMap::new() };
+
+    named_decl.into_iter().for_each(|decl| {
+        add_decl(&mut decl_map, decl);
+    });
 
     let mut registry = registry::RegistryBase {
         name: "what".to_string(),
@@ -84,16 +74,16 @@ fn test_registry() {
     };
 
     let resolver = |ident: &Identifier| {
-        all_decls.decls.get(&Either::Left(ident.clone()))
-            .or_else(|| all_decls.typedefs.get(ident))
+        decl_map.decls.get(&Either::Left(ident.clone()))
+            .or_else(|| decl_map.typedefs.get(ident))
     };
 
-    all_decls.typedefs.values()
+    decl_map.typedefs.values()
         .for_each(|decl| {
             to_registry_decl(&mut registry, decl, &resolver).unwrap();
         });
 
-    all_decls.decls.values()
+    decl_map.decls.values()
         .for_each(|decl| {
             // don't add struct declaration to registry
             if decl.get_record_decl().map(|r| r.is_definition).unwrap_or(true) {

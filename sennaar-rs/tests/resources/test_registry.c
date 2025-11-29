@@ -12,6 +12,10 @@ typedef struct _how * howOpaqueHanle;
 struct Nest {
     int a;
     char b;
+    union {
+        float c;
+        double d;
+    };
 };
 
 void someCommand(int a, const char *b);

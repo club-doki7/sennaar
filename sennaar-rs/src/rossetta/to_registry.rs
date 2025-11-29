@@ -166,6 +166,8 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(&Identifier) -> Option<&'decl C
 
             if record.is_definition {
                 if let Either::Left(ident) = &record.name {
+                    // TODO: handle `subrecords` in record
+
                     let members = record.fields
                         .iter()
                         .map(|field| {
@@ -179,6 +181,7 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(&Identifier) -> Option<&'decl C
                             ))
                         })
                         .collect::<Result<Vec<registry::Member<'static>>, String>>()?;
+
                     let strukt = registry::Structure::new(
                         ident.clone(), members);
                     
