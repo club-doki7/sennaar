@@ -23,6 +23,11 @@ pub fn map_decl<'decl, 'ctx>(cursor: CXCursor, extra_decls: &'decl mut Vec<CDecl
         let name = get_cursor_spelling(cursor)?;
 
         let decl = match kind {
+            CXCursor_VarDecl => {
+                let ty = map_ty(clang_getCursorType(cursor))?;
+                CDecl::Var(Box::new(CVarDecl { name: name.interned(), ty }))
+            }
+
             CXCursor_TypedefDecl => {
                 let underlying  = map_ty(clang_getTypedefDeclUnderlyingType(cursor))?;
                 // a more efficent way is [map_ty] with a cursor, but that makes thing more complicate.
@@ -206,8 +211,7 @@ pub(crate) fn enrich_param(ty: CType, cursor: &mut impl Iterator<Item = CXCursor
 
         // leaf types
         CBaseType::Primitive(_) 
-        | CBaseType::UnnamedStruct(_) 
-        | CBaseType::Struct(_) 
+        | CBaseType::Record(_, _)
         | CBaseType::Enum(_) 
         | CBaseType::Typedef(_) => ty,
     };
@@ -219,7 +223,7 @@ pub(crate) fn enrich_param(ty: CType, cursor: &mut impl Iterator<Item = CXCursor
 
 fn any_usage(ty: &CType, name: &String) -> bool {
     match &ty.ty {
-        CBaseType::UnnamedStruct(usr) => usr == name,
+        CBaseType::Record(_, Either::Right(usr)) => usr == name,
         CBaseType::Array(ty, _) => any_usage(ty, name),
         CBaseType::Pointer(ty) => any_usage(ty, name),
         CBaseType::FunProto(ret, params) => {
@@ -227,24 +231,23 @@ fn any_usage(ty: &CType, name: &String) -> bool {
             || params.iter().any(|p| any_usage(&p.ty, name))
         },
         
-        CBaseType::Struct(_) 
+        CBaseType::Record(_, _)
         | CBaseType::Enum(_) 
         | CBaseType::Primitive(_) 
         | CBaseType::Typedef(_) => false,
     }
 }
 
+/// @param decls a sequence of decl that lives in the same level, it could be either a decl sequence at top-level or in some struct
 pub fn name_unnamed_structs(decls: Vec<CDecl>) -> Vec<CDecl> {
-    // TODO: we need to handle top-level unnamed struct, such as `struct { ... } a, b;` or `typedef struct { ... } Foo;`
-    // thses should be considered some kind of "type use" like field.
-    // thus, `name_unnamed_structs` should accept a [ContextPathNode] and replace all
-    // `ContextPathNode::Struct(name)` (also Union) in this method with that node.
-
     let mut usage_map: HashMap<String, Vec<Usage>> = HashMap::new();
     let mut new_decls = Vec::<CDecl>::new();
 
     decls.iter().for_each(|decl| {
         match decl {
+            CDecl::Var(var) => {
+                collect_usage_on_ty(&var.ty, &mut usage_map, vec![ ContextPathNode::Var(var.name.to_string()) ]);
+            }
             CDecl::Struct(record) | CDecl::Union(record) => {
                 if record.is_definition {
                     let name = decl.name();
@@ -269,14 +272,14 @@ pub fn name_unnamed_structs(decls: Vec<CDecl>) -> Vec<CDecl> {
                     // collect all usage by struct (i mean `struct { struct { ... }; }`)
                     // these struct will not be referenced by any field, thus we can put them to usage_map at any time
                     record.subrecords.iter().enumerate().for_each(|(idx, usr)| {
-                        println!("subdecl {}: {}", idx, usr);
+                        // println!("subdecl {}: {}", idx, usr);
                         usage_map.insert(usr.clone(), vec![ Usage(vec![ node.clone(), ContextPathNode::Nest(idx) ]) ]);
                     });
                 }
             },
             
-            CDecl::Typedef(_) 
-            | CDecl::Fn(_) 
+            CDecl::Typedef(_) => {},        // TODO: handle typedef struct { ... } *p;` case
+            CDecl::Fn(_) 
             | CDecl::Enum(_) => {},
         }
     });
@@ -286,43 +289,68 @@ pub fn name_unnamed_structs(decls: Vec<CDecl>) -> Vec<CDecl> {
     println!("{:#?}", usage_map);
     
     decls.into_iter().for_each(|decl| {
-        if let Some(record) = decl.get_record_decl() {
-            if record.is_definition {
-                let name = match &record.name {
-                    Either::Left(ident) => ident.clone(),
-                    Either::Right(usr) => Usage::to_name(&usage_map, usr, &mut cache).interned(),
-                };
+        match decl {
+            CDecl::Struct(ref record) | CDecl::Union(ref record) => {
+                if record.is_definition {
 
-                let decl_op = |decl: CStructDecl| {
-                    let named_subrecords = decl.subrecords.iter()
-                    .map(|usr| Usage::to_name(&usage_map, usr, &mut cache))
-                    .collect();
+                    let name = match &record.name {
+                        Either::Left(ident) => ident.clone(),
+                        Either::Right(usr) => {
+                            let is_struct = match decl {
+                                CDecl::Struct(_) => true,
+                                CDecl::Union(_) => false,
+                                _ => unreachable!()
+                            };
 
-                    let inst_fields = decl.fields.into_iter().map(|decl| {
-                        let new_ty = Usage::replace_usage_in_ty(&usage_map, decl.ty, &mut cache);
-                        CFieldDecl {
-                            name: decl.name,
-                            ty: new_ty,
+                            Usage::to_name(&usage_map, usr, is_struct, &mut cache).interned()
+                        },
+                    };
+
+                    let decl_op = |is_struct: bool, decl: CStructDecl| {
+                        let named_subrecords = decl.subrecords.iter()
+                            .map(|usr| Usage::to_name(&usage_map, usr, is_struct, &mut cache))
+                            .collect();
+
+                        let inst_fields = decl.fields.into_iter().map(|decl| {
+                            let new_ty = Usage::replace_usage_in_ty(&usage_map, decl.ty, &mut cache);
+                            CFieldDecl {
+                                name: decl.name,
+                                ty: new_ty,
+                            }
+                        }).collect::<Vec<CFieldDecl>>();
+                    
+                        CStructDecl {
+                            name: Either::Left(name),
+                            fields: inst_fields,
+                            is_definition: decl.is_definition,
+                            subrecords: named_subrecords,
                         }
-                    }).collect::<Vec<CFieldDecl>>();
-                
-                    CStructDecl {
-                        name: Either::Left(name),
-                        fields: inst_fields,
-                        is_definition: decl.is_definition,
-                        subrecords: named_subrecords,
-                    }
+                    };
+
+                    let decl = match decl {
+                        CDecl::Struct(record) => CDecl::Struct(Box::new(decl_op(true, *record))),
+                        CDecl::Union(record) => CDecl::Union(Box::new(decl_op(false, *record))),
+                        _ => unreachable!(),
+                    };
+
+                    new_decls.push(decl);
+                    return;
+                }
+            },
+            CDecl::Var(decl) => {
+                let new_ty = Usage::replace_usage_in_ty(&usage_map, decl.ty, &mut cache);
+                let new_decl = CVarDecl {
+                    name: decl.name,
+                    ty: new_ty,
                 };
 
-                let decl = match decl {
-                    CDecl::Struct(record) => CDecl::Struct(Box::new(decl_op(*record))),
-                    CDecl::Union(record) => CDecl::Union(Box::new(decl_op(*record))),
-                    _ => unreachable!(),
-                };
-
-                new_decls.push(decl);
+                new_decls.push(CDecl::Var(Box::new(new_decl)));
                 return;
-            }
+            },
+
+            CDecl::Typedef(_) => {},        // TODO: `handle typedef struct { ... } *p;` case
+
+            _ => {}
         }
 
         new_decls.push(decl);
@@ -351,7 +379,7 @@ pub enum ContextPathNode {
     // usage kind, for example,
     // the context of `struct { ... }` in `struct A { struct { ... } *foo; }` is `vec![ Struct(A), Field(foo), Ptr ]`
     // and the context of `struct A { void (*f)(struct { ... } bar); }` is `vec![ Struct(A), Field(f), Ptr, FunParam(bar) ]`
-    Field(String), FunParam(String),
+    Field(String), FunParam(String), Var(String),
     // unfortunately, we don't know the kind of the nest structure (struct or union),
     // cause `CStructDecl.subrecords` only stores USR.
     Nest(usize),
@@ -361,8 +389,19 @@ pub enum ContextPathNode {
 struct Usage(Vec<ContextPathNode>);
 
 impl Usage {
+    fn to_name(usages: &HashMap<String, Vec<Usage>>, usr: &String, is_struct: bool, cache: &mut HashMap<String, String>) -> String {
+        let name = Usage::_to_name(usages, usr, cache);
+        let prefix = if is_struct {
+            "struct"
+        } else {
+            "union"
+        };
+
+        format!("{}_de_{}", prefix, name)
+    }
+
     /// Convert a USR to human readable name with [usages]
-    fn to_name(usages: &HashMap<String, Vec<Usage>>, usr: &String, cache: &mut HashMap<String, String>) -> String {
+    fn _to_name(usages: &HashMap<String, Vec<Usage>>, usr: &String, cache: &mut HashMap<String, String>) -> String {
         if let Some(hit) = cache.get(usr) {
             return hit.clone();
         }
@@ -379,7 +418,7 @@ impl Usage {
                     let record_name = match name {
                         Either::Left(l) => l.to_string(),
                         // hope that there is no cyclic usage between unnamed structures
-                        Either::Right(r) => Usage::to_name(usages, r, cache),
+                        Either::Right(r) => Usage::_to_name(usages, r, cache),
                     };
 
                     let node_name = match node {
@@ -390,6 +429,7 @@ impl Usage {
 
                     format!("{}_{}", node_name, record_name)
                 },
+                ContextPathNode::Var(name) => format!("var_{}", name),
                 ContextPathNode::FunRet => "f".to_string(),
                 ContextPathNode::Ptr => "p".to_string(),
                 ContextPathNode::Array => "arr".to_string(),
@@ -408,10 +448,10 @@ impl Usage {
 
     /// Replace all USR usage in [ty] with human readable name with [usages]
     fn replace_usage_in_ty(usages: &HashMap<String, Vec<Usage>>, ty: CType, cache: &mut HashMap<String, String>) -> CType {
-        if let CBaseType::UnnamedStruct(name) = &ty.ty {
+        if let CBaseType::Record(is_struct, Either::Right(name)) = &ty.ty {
             return CType { 
                 is_const: ty.is_const, 
-                ty: CBaseType::Struct(Usage::to_name(usages, name, cache).interned())
+                ty: CBaseType::Record(*is_struct, Either::Left(Usage::to_name(usages, name, true, cache).interned()))
             }
         }
 
@@ -457,7 +497,7 @@ fn collect_usage_on_ty<'m, 't : 'm>(
                 collect_usage_on_ty(&p.ty, dest, param_ctx);
             }
         },
-        CBaseType::UnnamedStruct(usr) => {
+        CBaseType::Record(is_struct, Either::Right(usr)) => {
             let exist = dest.get_mut(usr);
             let usages: &mut Vec<Usage>;
             if let Some(usages_) = exist {
@@ -472,7 +512,7 @@ fn collect_usage_on_ty<'m, 't : 'm>(
         },
         
         CBaseType::Primitive(_) 
-        | CBaseType::Struct(_) 
+        | CBaseType::Record(_, _)
         | CBaseType::Enum(_) 
         | CBaseType::Typedef(_) => {},
     }

@@ -14,6 +14,7 @@ pub enum CDecl {
     Struct(Box<CStructDecl>),
     Union(Box<CStructDecl>),
     Enum(Box<CEnumDecl>),
+    Var(Box<CVarDecl>),
 }
 
 #[derive(Debug)]
@@ -63,6 +64,12 @@ pub struct CEnumConstantDecl {
     pub value: u64,
 }
 
+#[derive(Debug)]
+pub struct CVarDecl {
+    pub name: Identifier, 
+    pub ty: CType,
+}
+
 impl CDecl {
     pub fn get_record_decl(&self) -> Option<&CStructDecl> {
         match &self {
@@ -77,7 +84,8 @@ impl CDecl {
             CDecl::Struct(record) | CDecl::Union(record) => Some(*record),
             CDecl::Typedef(_) 
             | CDecl::Fn(_) 
-            | CDecl::Enum(_) => None,
+            | CDecl::Enum(_)
+            | CDecl::Var(_) => None,
         }
     }
 
@@ -88,6 +96,7 @@ impl CDecl {
             CDecl::Struct(decl) => decl.name.clone(),
             CDecl::Union(decl) => decl.name.clone(),
             CDecl::Enum(decl) => Either::Left(decl.name.clone()),
+            CDecl::Var(decl) => Either::Left(decl.name.clone()),
         }
     }
 
@@ -148,6 +157,9 @@ impl Display for CDecl {
                 }
 
                 write!(f, " }};")
+            },
+            CDecl::Var(decl) => {
+                write!(f, "{} {};", decl.ty, decl.name)
             }
         }
     }

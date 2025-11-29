@@ -1,8 +1,8 @@
 // uncomment thses until we can handle them
 
-// struct {
-//     int value;
-// };
+struct {
+    int value;
+} topVarDecl;
 
 struct Named {
     int value;

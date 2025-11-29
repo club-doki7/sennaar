@@ -81,7 +81,7 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(&Identifier) -> Option<&'decl C
                         }
 
                         // only named case
-                        CBaseType::Struct(name) => {
+                        CBaseType::Record(_, Either::Left(name)) => {
                             let decl = resolver(name)
                                 .ok_or(format!("Cannot resolve {}", name))?
                                 .get_record_decl()
@@ -210,5 +210,6 @@ pub fn to_registry_decl<'decl, 'de, Resolver: Fn(&Identifier) -> Option<&'decl C
 
             return Ok(())
         },
+        CDecl::Var(_) => { return Ok(()); }     // TODO: add var
     }
 }

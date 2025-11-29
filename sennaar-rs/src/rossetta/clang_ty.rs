@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use clang_sys::*;
+use either::Either;
 
 use crate::Internalize;
 use crate::cpl::{CBaseType, CParam, CPrimitive, CType};
@@ -98,18 +99,25 @@ pub fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 // TODO: not sure if decl will be invalid
                 assert!(clang_isInvalid(decl.kind()) == 0);
 
+                let is_struct = match decl.kind() {
+                    CXCursor_StructDecl => true,
+                    CXCursor_UnionDecl => false,
+                    _ => unreachable!("The definition of a record type use is neither StructDecl nor UnionDecl: {}", decl.get_kind_spelling()?)
+                };
+
                 if decl.is_anonymous() {
                     // if the referenced struct is anonymous, we use usr
-                    CBaseType::UnnamedStruct(decl.get_usr()?)
+                    CBaseType::Record(is_struct, Either::Right(decl.get_usr()?))
                 } else {   
                     let raw_name = clang_getTypeSpelling(ty);
                     let name_with_struct = from_CXString(raw_name)?;
                     if let Some(name) = name_with_struct.strip_prefix("struct ") {
-                        CBaseType::Struct(name.interned())
+                        println!("still reachable?");
+                        CBaseType::Record(is_struct, Either::Left(name.interned()))
                     } else {
                         // this is possible that a record doesnt start with "struct ", like the use of `Foo` in `struct { ... } Foo`
                         assert!(! name_with_struct.is_empty());
-                        CBaseType::Struct(name_with_struct.interned())
+                        CBaseType::Record(is_struct, Either::Left(name_with_struct.interned()))
                     }
                 }
             }

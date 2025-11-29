@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{Identifier, Internalize};
+use crate::{Identifier, Internalize, cpl::RecordName};
 
 #[derive(Debug)]
 pub enum CSign {
@@ -74,9 +74,8 @@ pub enum CBaseType {
     Array(Box<CType>, Option<u64>),
     Pointer(Box<CType>),
     FunProto(Box<CType>, Vec<CParam>),
-    Struct(Identifier),
-    /// a USR in [ClangCtx]
-    UnnamedStruct(String),
+    // (true if struct and false if union , name)
+    Record(bool, RecordName),
     /// TODO: union
     Enum(Identifier),
     Typedef(Identifier),
@@ -167,8 +166,18 @@ impl CBaseType {
             // i guess function proto is never const
             CBaseType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, None, false, false),
             CBaseType::Typedef(ident) => write!(f, "{}", ident),
-            CBaseType::Struct(ident) => write!(f, "struct {}", ident),
-            CBaseType::UnnamedStruct(usr) => write!(f, "struct <USR: {}>", usr),
+            CBaseType::Record(is_struct, ident) => {
+                if *is_struct {
+                    write!(f, "struct ")?;
+                } else {
+                    write!(f, "union ")?;
+                }
+
+                match ident {
+                    either::Either::Left(name) => write!(f, "{}", name),
+                    either::Either::Right(usr) => write!(f, "<USR: {}>", usr),
+                }
+            },
             CBaseType::Enum(ident) => write!(f, "enum {}", ident),
         }
     }
@@ -231,11 +240,7 @@ impl CType {
             },
 
             // leaf nodes
-            CBaseType::Primitive(_) 
-            | CBaseType::Struct(_) 
-            | CBaseType::UnnamedStruct(_) 
-            | CBaseType::Enum(_) 
-            | CBaseType::Typedef(_) => {},
+            _ => {},
         }
     }
 
@@ -260,11 +265,7 @@ impl CType {
             },
 
             // leaf nodes
-            CBaseType::Primitive(_) 
-            | CBaseType::Struct(_) 
-            | CBaseType::UnnamedStruct(_) 
-            | CBaseType::Enum(_) 
-            | CBaseType::Typedef(_) => self,
+            _ => self,
         }
     }
 
