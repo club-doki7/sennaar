@@ -37,6 +37,11 @@ fn add_decl(dest: &mut DeclMap, decl: CDecl) {
 fn test_registry() {
     let cursor = test_resource_of(c"test_registry.c");
 
+    // TODO:
+    // 0. extract CDecls from CXCursor to `all_decls: Vec<CDecls>`
+    // 1. name all unnamed struct/union in `all_decls` and produce `named_decls`
+    // 2. use `add_decl` on `named_decls` to produce `DeclMap`
+    // 3. use `DeclMap` to fill the `Registry`
     let mut all_decls = DeclMap { typedefs: HashMap::new(), decls: HashMap::new() };
     let mut extra_decls = Vec::<CDecl>::new();
 
