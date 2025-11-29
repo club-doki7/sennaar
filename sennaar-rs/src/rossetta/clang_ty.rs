@@ -112,7 +112,6 @@ pub fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                     let raw_name = clang_getTypeSpelling(ty);
                     let name_with_struct = from_CXString(raw_name)?;
                     if let Some(name) = name_with_struct.strip_prefix("struct ") {
-                        println!("still reachable?");
                         CBaseType::Record(is_struct, Either::Left(name.interned()))
                     } else {
                         // this is possible that a record doesnt start with "struct ", like the use of `Foo` in `struct { ... } Foo`
