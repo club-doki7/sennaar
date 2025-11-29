@@ -263,17 +263,9 @@ fn collect_usage_on_ty<'m, 't : 'm>(
                 collect_usage_on_ty(&p.ty, dest, param_ctx);
             }
         },
-        CBaseType::Record(is_struct, Either::Right(usr)) => {
-            let exist = dest.get_mut(usr);
-            let usages: &mut Vec<Usage>;
-            if let Some(usages_) = exist {
-                usages = usages_;
-            } else {
-                dest.insert(usr.clone(), Vec::new());
-                usages = dest.get_mut(usr)
-                    .expect("What do you mean I got None right after I insert something to it??");
-            }
-
+        CBaseType::Record(_, Either::Right(usr)) => {
+            let usages = dest.entry(usr.clone())
+                .or_insert_with(|| Vec::new());
             usages.push(Usage(context));
         },
         
