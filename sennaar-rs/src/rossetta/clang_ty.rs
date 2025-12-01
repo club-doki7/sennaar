@@ -1,103 +1,32 @@
 #![allow(non_upper_case_globals)]
 
-use std::fmt::Display;
-
 use clang_sys::*;
+use either::Either;
 
-use crate::{Identifier, Internalize};
+use crate::Internalize;
+use crate::cpl::{CBaseType, CParam, CPrimitive, CType};
 use crate::rossetta::clang_utils::*;
 
-#[derive(Debug)]
-pub enum CSign {
-    Signed,
-    ExplicitSigned,
-    Unsigned,
-}
-
-#[derive(Debug)]
-pub enum CType {
-    Primitive { signed: CSign, ident: Identifier },
-    Array(Box<CType>, u64),
-    Pointer(Box<CType>),
-    FunProto(Box<CType>, Vec<CType>),
-    Struct(Identifier),
-    Enum(Identifier),
-    Typedef(Identifier),
-}
-
-impl CType {
-    pub fn signed(ident: Identifier) -> CType {
-        CType::Primitive {
-            signed: CSign::Signed,
-            ident,
-        }
-    }
-
-    pub fn unsigned(ident: Identifier) -> CType {
-        CType::Primitive {
-            signed: CSign::Unsigned,
-            ident,
-        }
-    }
-
-    pub fn fmt_fun(
-        f: &mut std::fmt::Formatter<'_>,
-        ret: &Box<CType>,
-        params: &Vec<CType>,
-        name: Option<Identifier>,
-    ) -> std::fmt::Result {
-        write!(f, "{} ", ret)?;
-        if let Some(name) = name {
-            write!(f, "(*{})", name)?;
-        }
-
-        write!(f, "(")?;
-
-        let params_str = params
-            .iter()
-            .map(|p| format!("{}", p))
-            .collect::<Vec<String>>();
-        let param_comma_seq = params_str.join(", ");
-        write!(f, "{}", param_comma_seq)?;
-
-        write!(f, ")")?;
-
-        Ok(())
-    }
-}
-
-impl Display for CType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self {
-            CType::Primitive { signed, ident } => match *signed {
-                CSign::Signed => write!(f, "{}", ident),
-                CSign::ExplicitSigned => write!(f, "signed {}", ident),
-                CSign::Unsigned => write!(f, "unsigned {}", ident),
-            },
-            CType::Array(ctype, size) => write!(f, "{}[{}]", ctype, size),
-            CType::Pointer(ctype) => match &*(*ctype) {
-                CType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, Some("".interned())),
-                _ => write!(f, "{}*", ctype),
-            },
-            CType::FunProto(ret, params) => CType::fmt_fun(f, ret, params, None),
-            CType::Typedef(ident) => write!(f, "{}", ident),
-            CType::Struct(ident) => write!(f, "struct {}", ident),
-            CType::Enum(ident) => write!(f, "enum {}", ident),
-        }
-    }
-}
-
-pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
+pub fn map_cursor_ty(cursor: CXCursor) -> Result<CType, ClangError> {
     unsafe {
+        let ty = clang_getCursorType(cursor);
+        map_ty(ty)
+    }
+}
+
+pub fn map_ty(ty: CXType) -> Result<CType, ClangError> {
+    unsafe {
+        let is_const = clang_isConstQualifiedType(ty) != 0;
+
         if let Some(prime) = try_map_primitive(ty) {
-            return Ok(prime);
+            return Ok(CType { is_const, ty: prime });
         }
 
-        let cty = match ty.kind {
+        let cty: CBaseType = match ty.kind {
             CXType_Pointer => {
                 let pointee = clang_getPointeeType(ty);
                 let mapped = map_ty(pointee)?;
-                CType::Pointer(Box::new(mapped))
+                CBaseType::Pointer(Box::new(mapped))
             }
 
             // function with parameters
@@ -108,10 +37,12 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 let mapped_result = map_ty(result)?;
                 let mapped_params = params
                     .into_iter()
-                    .map(|p| map_ty(p))
-                    .collect::<Result<Vec<CType>, String>>()?;
+                    // It is impossible to get the name of parameter, the information is stored in where this type is used
+                    // i.e. for typedef void (*f)(int p);, there is a ParmDecl in the children of typedef.
+                    .map(|p| map_ty(p).map(|t| CParam { name: None, ty: t })) 
+                    .collect::<Result<Vec<CParam>, String>>()?;
 
-                CType::FunProto(Box::new(mapped_result), mapped_params)
+                CBaseType::FunProto(Box::new(mapped_result), mapped_params)
             }
 
             // function with no parameters
@@ -119,7 +50,7 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 let result = clang_getResultType(ty);
                 let mapped_result = map_ty(result)?;
 
-                CType::FunProto(Box::new(mapped_result), Vec::new())
+                CBaseType::FunProto(Box::new(mapped_result), Vec::new())
             }
 
             CXType_ConstantArray => {
@@ -131,30 +62,59 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
 
                 let mapped_element_ty = map_ty(element_ty)?;
 
-                CType::Array(Box::new(mapped_element_ty), size as u64)
+                CBaseType::Array(Box::new(mapped_element_ty), Some(size as u64))
+            }
+
+            CXType_IncompleteArray => {
+                // We can't handle `int arr[const]`, ty.is_const and element_ty.is_const are both false.
+                let element_ty = clang_getArrayElementType(ty);
+                let mapped = map_ty(element_ty)?;
+                // let size = clang_getArraySize(ty);
+
+
+
+                CBaseType::Array(Box::new(mapped), None)
             }
 
             // struct Foo/enum Bar/typedef things
             CXType_Elaborated => {
                 let inner = clang_Type_getNamedType(ty);
-                map_ty(inner)?
+                // i guess `is_const` is always false
+                let mapped = map_ty(inner)?;
+                assert!(! mapped.is_const);
+                mapped.ty
             }
 
             CXType_Typedef => {
                 let raw_name = clang_getTypedefName(ty);
                 let name = from_CXString(raw_name)?;
-                CType::Typedef(name.interned())
+                CBaseType::Typedef(name.interned())
             }
 
             CXType_Record => {
-                // dont think this works
-                // FIXME: doesn't work, removing leading 'struct '
-                let raw_name = clang_getTypeSpelling(ty);
-                let name_with_struct = from_CXString(raw_name)?;
-                if let Some(name) = name_with_struct.strip_prefix("struct ") {
-                    CType::Struct(name.interned())
-                } else {
-                    unreachable!();
+                let decl = clang_getTypeDeclaration(ty);
+                // TODO: not sure if decl will be invalid
+                assert!(clang_isInvalid(decl.kind()) == 0);
+
+                let is_struct = match decl.kind() {
+                    CXCursor_StructDecl => true,
+                    CXCursor_UnionDecl => false,
+                    _ => unreachable!("The definition of a record type use is neither StructDecl nor UnionDecl: {}", decl.get_kind_spelling()?)
+                };
+
+                if decl.is_anonymous() {
+                    // if the referenced struct is anonymous, we use usr
+                    CBaseType::Record(is_struct, Either::Right(decl.get_usr()?))
+                } else {   
+                    let raw_name = clang_getTypeSpelling(ty);
+                    let name_with_struct = from_CXString(raw_name)?;
+                    if let Some(name) = name_with_struct.strip_prefix("struct ") {
+                        CBaseType::Record(is_struct, Either::Left(name.interned()))
+                    } else {
+                        // this is possible that a record doesnt start with "struct ", like the use of `Foo` in `struct { ... } Foo`
+                        assert!(! name_with_struct.is_empty());
+                        CBaseType::Record(is_struct, Either::Left(name_with_struct.interned()))
+                    }
                 }
             }
 
@@ -162,8 +122,9 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 let raw_name = clang_getTypeSpelling(ty);
                 let name_with_enum = from_CXString(raw_name)?;
                 if let Some(name) = name_with_enum.strip_prefix("enum ") {
-                    CType::Enum(name.interned())
+                    CBaseType::Enum(name.interned())
                 } else {
+                    // TODO: so this case is also reachable like struct?
                     unreachable!();
                 }
             }
@@ -181,40 +142,30 @@ pub unsafe fn map_ty(ty: CXType) -> Result<CType, ClangError> {
             }
         };
 
-        Ok(cty)
+        Ok(CType { is_const, ty: cty })
     }
 }
 
-fn try_map_primitive(ty: CXType) -> Option<CType> {
-    let ident = match ty.kind {
-        CXType_Void => "void",
-        CXType_Bool => "bool", // ??
-        CXType_UChar | CXType_Char_S | CXType_SChar => "char",
-        CXType_UShort | CXType_Short => "short",
-        CXType_UInt | CXType_Int => "int",
-        CXType_ULong | CXType_Long => "long",
-        CXType_ULongLong | CXType_LongLong => "long long",
-        CXType_Float => "float",
-        CXType_Double => "double",
-        CXType_LongDouble => "long double",
+fn try_map_primitive(ty: CXType) -> Option<CBaseType> {
+    let primitive = match ty.kind {
+        CXType_Void => CPrimitive::Void,
+        CXType_Bool => CPrimitive::Bool,
+        CXType_UChar => CPrimitive::UChar,
+        CXType_Char_S => CPrimitive::CharS,
+        CXType_SChar => CPrimitive::SChar,
+        CXType_UShort => CPrimitive::UShort,
+        CXType_Short => CPrimitive::Short,
+        CXType_UInt => CPrimitive::UInt,
+        CXType_Int => CPrimitive::Int,
+        CXType_ULong => CPrimitive::ULong,
+        CXType_Long => CPrimitive::Long,
+        CXType_ULongLong => CPrimitive::ULongLong,
+        CXType_LongLong => CPrimitive::LongLong,
+        CXType_Float => CPrimitive::Float,
+        CXType_Double => CPrimitive::Double,
+        CXType_LongDouble => CPrimitive::LongDouble,
         _ => return None,
     };
 
-    let sign = map_primitive_sign(ty);
-
-    Some(CType::Primitive {
-        signed: sign,
-        ident: ident.interned(),
-    })
-}
-
-/// If the sign is determined by the type (such as uint128), the implementation should return `CSign::Signed`
-fn map_primitive_sign(ty: CXType) -> CSign {
-    match ty.kind {
-        CXType_UChar | CXType_UShort | CXType_UInt | CXType_ULong | CXType_ULongLong => {
-            CSign::Unsigned
-        }
-        CXType_SChar => CSign::ExplicitSigned,
-        _ => CSign::Signed,
-    }
+    Some(CBaseType::Primitive(primitive))
 }

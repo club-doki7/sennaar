@@ -5,14 +5,14 @@ use std::ptr::null_mut;
 
 use clang_sys::*;
 
-use crate::{Identifier, Internalize};
 use crate::cpl::*;
 use crate::rossetta::clang_ty::map_ty;
 use crate::rossetta::clang_utils::*;
+use crate::{Identifier, Internalize};
 
 // TODO: improve error reporting
 // TODO: improve life time
-pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> {
+pub fn map_expr(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> {
     unsafe {
         let cursor_kind = clang_getCursorKind(cursor);
 
@@ -78,21 +78,21 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
             })),
             CXCursor_ArraySubscriptExpr => {
                 let [raw_base, raw_index] = get_children_n::<2>(cursor)?;
-                let base = map_nodes(raw_base)?;
-                let index = map_nodes(raw_index)?;
+                let base = map_expr(raw_base)?;
+                let index = map_expr(raw_index)?;
 
                 CExpr::Index(Box::new(CIndexExpr { base, index }))
             }
             CXCursor_CallExpr => {
                 let children = get_children(cursor);
-                if children.len() == 0 {
+                if children.is_empty() {
                     return Err("Size doesn't match(CallExpr)".to_string());
                 } else {
-                    let callee = map_nodes(children[0])?;
+                    let callee = map_expr(children[0])?;
                     let args = children
                         .into_iter()
                         .skip(1)
-                        .map(|e| map_nodes(e))
+                        .map(|e| map_expr(e))
                         .collect::<Result<Vec<CExpr>, String>>()?;
 
                     CExpr::Call(Box::new(CCallExpr { callee, args }))
@@ -101,7 +101,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
             CXCursor_MemberRefExpr => {
                 let member = get_identifier(cursor)?;
                 let [raw_obj] = get_children_n::<1>(cursor)?;
-                let obj = map_nodes(raw_obj)?;
+                let obj = map_expr(raw_obj)?;
 
                 CExpr::Member(Box::new(CMemberExpr { obj, member }))
             }
@@ -123,7 +123,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
                 };
 
                 let [child] = get_children_n(cursor)?;
-                let expr = map_nodes(child)?;
+                let expr = map_expr(child)?;
 
                 op_code.either_with(
                     expr,
@@ -189,7 +189,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
                 let ty = clang_getCursorType(cursor);
                 let cty = map_ty(ty)?;
 
-                let mapped = map_nodes(casted)?;
+                let mapped = map_expr(casted)?;
 
                 CExpr::Cast(Box::new(CCastExpr {
                     expr: mapped,
@@ -238,8 +238,8 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
 
                 let [raw_lhs, raw_rhs] = get_children_n(cursor)?;
 
-                let lhs = map_nodes(raw_lhs)?;
-                let rhs = map_nodes(raw_rhs)?;
+                let lhs = map_expr(raw_lhs)?;
+                let rhs = map_expr(raw_rhs)?;
 
                 CExpr::Binary(Box::new(CBinaryExpr {
                     op: op_code,
@@ -251,9 +251,9 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
             CXCursor_ConditionalOperator => {
                 let [raw_cond, raw_then, raw_otherwise] = get_children_n(cursor)?;
 
-                let cond = map_nodes(raw_cond)?;
-                let then = map_nodes(raw_then)?;
-                let otherwise = map_nodes(raw_otherwise)?;
+                let cond = map_expr(raw_cond)?;
+                let then = map_expr(raw_then)?;
+                let otherwise = map_expr(raw_otherwise)?;
 
                 CExpr::Conditional(Box::new(CConditionalExpr {
                     cond,
@@ -263,7 +263,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
             }
             CXCursor_ParenExpr => {
                 let [child] = get_children_n(cursor)?;
-                let expr = map_nodes(child)?;
+                let expr = map_expr(child)?;
 
                 CExpr::Paren(Box::new(CParenExpr { expr }))
             }
@@ -282,7 +282,7 @@ pub unsafe fn map_nodes(cursor: CXCursor) -> Result<CExpr<'static>, ClangError> 
                 );
 
                 let [child] = get_children_n(cursor)?;
-                map_nodes(child)?
+                map_expr(child)?
             }
             _ => {
                 let cs = clang_getCursorKindSpelling(cursor_kind);
@@ -334,4 +334,15 @@ unsafe fn get_suffix(cursor: CXCursor) -> &'static str {
             _ => unreachable!(),
         }
     }
+}
+
+pub fn map_int_literal(i: u64) -> CIntLiteralExpr<'static> {
+    let repr = format!("{:#X}", i);
+    let suffix = if i >= 0xFFFF {
+        "UL"
+    } else {
+        "U"
+    }.to_string();
+
+    CIntLiteralExpr { value: Cow::Owned(repr), suffix: Cow::Owned(suffix) }
 }
