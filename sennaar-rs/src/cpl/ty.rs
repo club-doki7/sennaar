@@ -80,15 +80,6 @@ pub enum CBaseType {
     Typedef(Identifier),
 }
 
-// macro_rules! define_ty {
-//     ($name:ident($($field:ident: $type:ty),*)) => {
-//         #[derive(Debug)]
-//         pub struct $name {
-//             pub is_const: bool,
-//             $(pub $field: $type),*
-//         }
-//     };
-// }
 
 // something that can be used as a parameter
 pub trait CParamLike: Display {

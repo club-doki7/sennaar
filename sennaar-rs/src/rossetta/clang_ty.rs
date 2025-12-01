@@ -71,10 +71,7 @@ pub fn map_ty(ty: CXType) -> Result<CType, ClangError> {
                 let mapped = map_ty(element_ty)?;
                 // let size = clang_getArraySize(ty);
 
-                // println!("My const: {}", is_const);
-                // println!("My element const: {}", clang_isConstQualifiedType(element_ty) != 0);
-                // println!("My element const 2: {}", clang_isConstQualifiedType(clang_getElementType(ty)) != 0);
-                // println!("My size: {}", size);
+
 
                 CBaseType::Array(Box::new(mapped), None)
             }

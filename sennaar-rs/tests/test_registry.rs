@@ -19,7 +19,7 @@ fn add_decl(dest: &mut DeclMap, decl: CDecl) {
     if let CDecl::Struct(decl) | CDecl::Union(decl) = &decl {
         if ! decl.is_definition {
             let exist = dest.decls.get(&decl.name);
-            if let Some(_) = exist {
+            if exist.is_some() {
                 return;
             }
         }
