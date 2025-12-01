@@ -1,0 +1,24 @@
+DEFINE_ENTITY( \
+    Typedef, \
+    std::unique_ptr<Type>, target \
+)
+
+DEFINE_ENTITY( \
+    Bitmask, \
+    Bitwidth, bitwidth, \
+    std::vector<Bitflag>, bitflags \
+)
+
+DEFINE_ENTITY( \
+    Bitflag, \
+    std::unique_ptr<CExpr>, value \
+)
+
+DEFINE_ENTITY( \
+    Command, \
+    std::vector<Param>, params, \
+    std::unique_ptr<Type>, result, \
+    std::vector<std::unique_ptr<CExpr>>, success_codes, \
+    std::vector<std::unique_ptr<CExpr>>, error_codes, \
+    std::optional<Identifier>, alias_to \
+)

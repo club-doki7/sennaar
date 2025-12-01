@@ -1,0 +1,3 @@
+target/Debug
+target/Release
+include/3rd-party/*.h

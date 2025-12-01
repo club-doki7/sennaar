@@ -1,0 +1,11 @@
+DEFINE_RUST_ENUM_VARIANT( \
+    IntLiteral, CExpr,\
+    std::string, value, \
+    std::string, suffix \
+)
+
+DEFINE_RUST_ENUM_VARIANT( \
+    FloatLiteral, CExpr, \
+    std::string, value, \
+    std::string, suffix \
+)
