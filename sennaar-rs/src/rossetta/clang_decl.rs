@@ -138,9 +138,7 @@ pub fn map_decl(cursor: CXCursor, extra_decls: &mut Vec<CDecl>) -> Result<CDecl,
             }
 
             _ => {
-                let cs = clang_getCursorKindSpelling(kind);
-                let s = from_CXString(cs)
-                    .map_err(|e| ClangError::from(format!("Failed to convert cursor kind spelling for kind {:?}: {}", kind, e)))?;
+                let s = cursor.get_kind_spelling()?;
                 todo!("unknown cursor kind on declaration {}: {}", name, s);
             }
         };
